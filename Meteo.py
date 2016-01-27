@@ -16,13 +16,13 @@ meteo_ini = '/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteo.ini'
 
 class Meteo(Screen):
     skin="""
-        <screen name="UMMeteo" position="center,15" size="820,700" flags="wfNoBorder" backgroundColor="#00FFFFFF" >
-            <widget name="info" position="0,0" size="820,20" font="Regular;20"/>
-            <widget name="myPic" position="280,20" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogram.png" size="540,660" zPosition="1" alphatest="on" />
+        <screen name="UMMeteo" position="center,15" size="920,700" flags="wfNoBorder" backgroundColor="#00FFFFFF" >
+            <widget name="info" position="0,0" size="920,20" font="Regular;20"/>
+            <widget name="myPic" position="280,20" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogram.png" size="640,660" zPosition="1" alphatest="on" />
             <ePixmap position="0,50" size="280,660" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/left.png" transparent="1" alphatest="on" />
             <eLabel text="Menu" position="0,660" size="200,30" zPosition="2" font="Regular;22" halign="center"/>
             <eLabel text="Ulubione" position="200,660" size="200,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" />
-            <eLabel name="info2" text="www.meteo.pl %s by areq 2016" position="400,660" size="420,30" zPosition="2" font="Regular;22" halign="right" />
+            <eLabel name="info2" text="www.meteo.pl %s by areq 2016  " position="400,660" size="520,30" zPosition="2" font="Regular;22" halign="right" />
         </screen>""" % version
 
     def __init__(self, session):
