@@ -10,7 +10,7 @@ from Screens.MessageBox import MessageBox
 from twisted.web.client import getPage, downloadPage
 import os,re
 
-version = '16.01.25'
+version = '16.01.27'
 
 meteo_ini = '/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteo.ini'
 
