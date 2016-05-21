@@ -14,14 +14,14 @@ class Configure(Screen):
 	for i in xrange(9):
 		s+= '<widget name="p%i" position="10, %i" size="900,40" font="Regular;20"/>\n' % (i, 90 +(42 *i)) 
 	skin = """
-	<screen name='Configure' position="160, 100" size="960,510" title="Konfiguracja UM Meteo.pl" >
+	<screen name="Configure" position="160,100" size="960,520" title="Konfiguracja UM Meteo.pl" flags="wfNoBorder">
 	<eLabel text="Możesz skonfigurować 9 ulubionych miejscowości do sprawdzania prognozy." position="10,5" size="900,25"  font="Regular;22" halign="center"/>
 	<eLabel text="Nawigacja: Strzałki Góra/Dół     OK - edycja pozycji" position="10,30" size="900,25"  font="Regular;22" halign="center"/>
 	<eLabel text="Strona domowa: http://e2.areq.eu.org/" position="10,55" size="900,25"  font="Regular;22" halign="center"/>
 	%s
-	<eLabel text="Usun" position="0,485" size="200,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="red" />
-	<eLabel text="EXIT - wyjscie bez zapisu" position="330,485" size="300,30" zPosition="2" font="Regular;22" halign="center"  />
-  <eLabel text="Zapisz i wyjdz" position="760,485" size="200,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" />
+	<eLabel text="Usuń" position="0,485" size="200,40" zPosition="2" font="Regular;22" halign="center" backgroundColor="red" valign="center"/>
+	<eLabel text="EXIT/BACK - wyjście bez zapisu" position="300,485" size="360,40" zPosition="2" font="Regular;22" halign="center" valign="center"/>
+	<eLabel text="Zapisz i wyjdź" position="760,485" size="200,40" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" valign="center"/>
 
 	</screen>"""  % s
 
@@ -92,20 +92,20 @@ class Configure(Screen):
 
 	def edit(self):	
 		askList = [
-		['dolnoslaskie','dolnoslaskie'],
+		['dolnośląskie','dolnoslaskie'],
 		['kujawsko-pomorskie','kujawsko-pomorskie'],
 		['lubelskie','lubelskie'],
 		['lubuskie','lubuskie'],
-		['lodzkie','lodzkie'],
-		['malopolskie','malopolskie'],
+		['łódzkie''lodzkie'],
+		['małopolskie','malopolskie'],
 		['mazowieckie','mazowieckie'],
 		['opolskie','opolskie'],
 		['podkarpackie','podkarpackie'],
 		['podlaskie','podlaskie'],
 		['pomorskie','pomorskie'],
-		['slaskie','slaskie'],
-		['swietokrzyskie','swietokrzyskie'],
-		['warminsko-mazurskie','warminsko-mazurskie'],
+		['śląskie','slaskie'],
+		['świętokrzyskie','swietokrzyskie'],
+		['warmińsko-mazurskie','warminsko-mazurskie'],
 		['wielkopolskie','wielkopolskie'],
 		['zachodniopomorskie','zachodniopomorskie']]
 
@@ -118,7 +118,7 @@ class Configure(Screen):
 			askList = []
 			for l in open('/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/woj/%s' % answer):
 				askList.append([l, l])
-			dei = self.session.openWithCallback(self.miejsceCB, ChoiceBox, title="Wybierz miejscowosc", list=askList)
+			dei = self.session.openWithCallback(self.miejsceCB, ChoiceBox, title="Wybierz miejscowość", list=askList)
 			dei.setTitle("Województwo %s" % answer)
 
 	def miejsceCB(self, answer):

@@ -10,25 +10,24 @@ from Screens.MessageBox import MessageBox
 from twisted.web.client import getPage, downloadPage
 import os,re
 
-version = '16.01.27'
+version = '16.05.21'
 
 meteo_ini = '/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteo.ini'
 
 class Meteo(Screen):
     skin="""
-        <screen name="UMMeteo" position="center,15" size="920,700" flags="wfNoBorder" backgroundColor="#00FFFFFF" >
-            <widget name="info" position="0,0" size="920,20" font="Regular;20"/>
-            <widget name="myPic" position="280,20" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogram.png" size="640,660" zPosition="1" alphatest="on" />
-            <ePixmap position="0,50" size="280,660" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/left.png" transparent="1" alphatest="on" />
-            <eLabel text="Menu" position="0,660" size="200,30" zPosition="2" font="Regular;22" halign="center"/>
-            <eLabel text="Ulubione" position="200,660" size="200,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" />
-            <eLabel name="info2" text="www.meteo.pl %s by areq 2016  " position="400,660" size="520,30" zPosition="2" font="Regular;22" halign="right" />
+        <screen name="UMMeteo" position="center,5" size="910,710" flags="wfNoBorder" backgroundColor="#00FFFFFF" >
+            <widget name="info" position="0,0" size="910,20" font="Regular;18" halign="center"/>
+            <ePixmap position="0,20" size="280,660" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/left.png" transparent="1" alphatest="on"/>
+            <widget name="myPic" position="280,20" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogram.png" size="630,660" zPosition="1" alphatest="on" scale="1"/>
+            <eLabel text="Menu" position="0,680" size="200,30" zPosition="2" font="Regular;22" halign="center"/>
+            <eLabel text="Ulubione" position="200,680" size="200,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" />
+            <eLabel name="info2" text="www.meteo.pl %s by areq 2016" position="400,680" size="510,30" zPosition="2" font="Regular;22" halign="right" />
         </screen>""" % version
 
     def __init__(self, session):
         Screen.__init__(self, session)
-        self.load_ini()
-        self["info"] = Label('Ładuje...')
+        self["info"] = Label('Ładuję...')
         self["myPic"] = Pixmap()
         try:
             os.unlink('/tmp/meteo.png')
@@ -43,6 +42,11 @@ class Meteo(Screen):
         }, -1)
         
         getPage('http://e2.areq.eu.org/ummeteo/version').addCallback(self.updateCB).addErrback(self.errorUpdate)
+
+        self.onLayoutFinish.append(self.layoutFinished)
+
+    def layoutFinished(self):
+        self.load_ini()
 
     def load_ini(self):
         self.miejsca = []
@@ -61,6 +65,7 @@ class Meteo(Screen):
         self.active += 1
         if self.active >= len(self.miejsca):
             self.active = 0
+        self["myPic"].instance.setPixmapFromFile("/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogram.png")
         self.start_meteo(self.miejsca[self.active])
 
     def updateCB(self, html):
