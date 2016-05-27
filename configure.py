@@ -96,7 +96,7 @@ class Configure(Screen):
 		['kujawsko-pomorskie','kujawsko-pomorskie'],
 		['lubelskie','lubelskie'],
 		['lubuskie','lubuskie'],
-		['łódzkie''lodzkie'],
+		['łódzkie','lodzkie'],
 		['małopolskie','malopolskie'],
 		['mazowieckie','mazowieckie'],
 		['opolskie','opolskie'],
