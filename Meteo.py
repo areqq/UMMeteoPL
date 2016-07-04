@@ -1,18 +1,22 @@
 #!/usr/bin/python -u
 # -*- coding: UTF-8 -*-
 
+from Tools.Directories import resolveFilename, SCOPE_PLUGINS
 from Screens.Screen import Screen
 from Components.Label import Label
 from Components.Pixmap import Pixmap
 from Components.ActionMap import ActionMap
 from Screens.ChoiceBox import ChoiceBox
 from Screens.MessageBox import MessageBox
+from Screens.TextBox import TextBox
 from twisted.web.client import getPage, downloadPage
 import os,re
 
-version = '16.05.21'
+version = '16.06.28'
 
-meteo_ini = '/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteo.ini'
+PluginLocation = "Extensions/UMMeteoPL"
+PluginPath = resolveFilename(SCOPE_PLUGINS, PluginLocation)
+meteo_ini = PluginPath + '/meteo.ini'
 
 class Meteo(Screen):
     skin="""
@@ -20,9 +24,11 @@ class Meteo(Screen):
             <widget name="info" position="0,0" size="910,20" font="Regular;18" halign="center"/>
             <ePixmap position="0,20" size="280,660" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/left.png" transparent="1" alphatest="on"/>
             <widget name="myPic" position="280,20" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogram.png" size="630,660" zPosition="1" alphatest="on" scale="1"/>
-            <eLabel text="Menu" position="0,680" size="200,30" zPosition="2" font="Regular;22" halign="center"/>
-            <eLabel text="Ulubione" position="200,680" size="200,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" />
-            <eLabel name="info2" text="www.meteo.pl %s by areq 2016" position="400,680" size="510,30" zPosition="2" font="Regular;22" halign="right" />
+            <eLabel text="Menu" position="0,680" size="160,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="blue" valign="center"/>
+            <eLabel text="Ulubione" position="160,680" size="160,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" valign="center"/>
+            <eLabel text="Info" position="320,680" size="160,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="yellow" valign="center"/>
+            <eLabel name="about" text="www.meteo.pl %s by areq 2016" position="480,680" size="426,30" zPosition="2" font="Regular;22" halign="right" valign="center"/>
+            <eLabel name="pad" text=" " position="906,680" size="4,30" zPosition="2" font="Regular;22" halign="center" valign="center"/>
         </screen>""" % version
 
     def __init__(self, session):
@@ -38,9 +44,16 @@ class Meteo(Screen):
             "ok": self.cancel,
             "cancel": self.cancel,
             "menu": self.menu,
+            "blue": self.menu,
             "green": self.next,
+            "left": self.prev,
+            "right": self.next,
+            "start": self.start,
+            "info": self.ShowOpis,
+            "yellow": self.ShowOpis,
+            "list": self.choose,
         }, -1)
-        
+
         getPage('http://e2.areq.eu.org/ummeteo/version').addCallback(self.updateCB).addErrback(self.errorUpdate)
 
         self.onLayoutFinish.append(self.layoutFinished)
@@ -49,23 +62,38 @@ class Meteo(Screen):
         self.load_ini()
 
     def load_ini(self):
+        self.miejscaFull = []
         self.miejsca = []
         self.active = 0
         try:
             for l in open(meteo_ini):
                 if len(l) > 4:
-                    self.miejsca.append( l.split()[0])
+                    self.miejscaFull.append(l.rstrip('\n'))
+                    self.miejsca.append(l.split()[0])
         except:
             pass
         if len(self.miejsca) < 1:
+            self.miejscaFull = ["2119 Dobre, pow.radziejowski"]
             self.miejsca = [2119]
         self.start_meteo(self.miejsca[0])
+
+    def prev(self):
+        self.active -= 1
+        if self.active < 0:
+            self.active = len(self.miejsca)-1
+        self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
+        self.start_meteo(self.miejsca[self.active])
 
     def next(self):
         self.active += 1
         if self.active >= len(self.miejsca):
             self.active = 0
-        self["myPic"].instance.setPixmapFromFile("/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogram.png")
+        self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
+        self.start_meteo(self.miejsca[self.active])
+
+    def start(self):
+        self.active = 0
+        self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
         self.start_meteo(self.miejsca[self.active])
 
     def updateCB(self, html):
@@ -77,36 +105,36 @@ class Meteo(Screen):
             pass
 
     def errorUpdate(self, html):
-        print "\n[UM Meteto] upgrade problem:", html
+        print "[UMMeteo] - upgrade problem:", html
 
     def upgradeCB(self, result = None):
-        print "\n[UM Meteto] upgrade:", result
+        print "[UMMeteo] - upgrade:", result
         if result:
-            print "\n[UM Meteto] upgrade yes\n"
-            downloadPage('http://e2.areq.eu.org/ummeteo/update.py','/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/update.py').addCallback(self.goupCB).addErrback(self.errorUpdate)
+            print "\n[UMMeteo] - upgrade yes\n"
+            downloadPage('http://e2.areq.eu.org/ummeteo/update.py',PluginPath + '/update.py').addCallback(self.goupCB).addErrback(self.errorUpdate)
         else:
-            print "\n[UM Meteto] upgrade cancel\n"
+            print "[UMMeteo] upgrade cancel\n"
 
     def goupCB(self, html):
-        print "\n[UM Meteto] upgrade.py done:", html
+        print "[UMMeteo] - upgrade.py done:", html
         try:
             import update
             reload(update)
             self.session.open(update.DoUpdate) 
         except:
-            print "\n[UM Meteto] upgrade.py - exception"
+            print "[UMMeteo] - upgrade.py - exception"
             import traceback
             traceback.print_exc() 
 
     def start_meteo(self, id ):
-        print "UMMeteo: miasto:", id
+        print "[UMMeteo] - miasto:", id
         url = "http://www.meteo.pl/um/php/meteorogram_id_um.php?ntype=0u&id=%s" % id
         getPage(url).addCallback(self.infoCB).addErrback(self.error)
 
     def error(self, error = None):
         if error is not None:
             self["info"].setText(str(error.getErrorMessage())) 
-    
+
     def infoCB(self, html):
         upng = "http://www.meteo.pl/um/metco/mgram_pict.php?ntype=0u&ffdate=%s&row=%s&col=%s&lang=pl"
         #var fcstdate = "2013080306";var ntype ="0u";var lang ="pl";var id="2119";var act_x = 208;var act_y = 393;
@@ -124,20 +152,48 @@ class Meteo(Screen):
         self["info"].setText(o)
 
     def pngCB(self, raw):
-        self["myPic"].instance.setPixmapFromFile("/tmp/meteo.png") 
+        self["myPic"].instance.setPixmapFromFile("/tmp/meteo.png")
 
     def cancel(self):
-        print "[UMMeteo] - cancel\n"
+        # print "[UMMeteo] - cancel\n"
         self.close(None)
-    
+
     def menu(self):
         try:
             import configure
             reload(configure)
             self.session.openWithCallback(self.poConfigureCB, configure.Configure)
+            self.load_ini()
         except:
             import traceback
             traceback.print_exc() 
 
     def poConfigureCB(self):
         self.load_ini()
+
+    def ShowOpis(self):
+        opisFile = PluginPath + '/opis.txt'
+        if os.path.isfile(opisFile):
+            f = open(opisFile, 'r')
+            opisText = f.read()
+            f.close()
+            Message = opisText
+        else:
+            Message = '\nBrak informacji'
+        self.session.open(TextBox, Message, "UMMeteoPL - informacje")
+
+    def choose(self):
+        askList = []
+        i = 0
+        for l in self.miejscaFull:
+            askList.append([l, i])
+            i += 1
+        dei = self.session.openWithCallback(self.favCB, ChoiceBox, title="Wybierz lokalizację", list=askList)
+        dei.setTitle("Lista ulubionych")
+
+    def favCB(self, answer):
+        answer = answer and answer[1]
+        if answer:
+            self.active = answer
+            self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
+            self.start_meteo(self.miejsca[self.active])

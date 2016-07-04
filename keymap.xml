@@ -8,13 +8,15 @@
 			<key id="KEY_GREEN" mapto="green" flags="m" />
 			<key id="KEY_YELLOW" mapto="yellow" flags="m" />
 			<key id="KEY_BLUE" mapto="blue" flags="m" />
-			<key id="KEY_HELP" mapto="info" flags="m" />
 			<key id="KEY_INFO" mapto="info" flags="m" />
 			<key id="KEY_MENU" mapto="menu" flags="m" />
 			<key id="KEY_OPTION" mapto="menu" flags="m" />
 			<key id="KEY_UP" mapto="up" flags="m" />
-			<key id="KEY_DOWN" mapto="down" flags="m" /> 
+			<key id="KEY_DOWN" mapto="down" flags="m" />
 			<key id="KEY_LEFT" mapto="left" flags="m" />
-			<key id="KEY_RIGHT" mapto="right" flags="m" /> 
+			<key id="KEY_RIGHT" mapto="right" flags="m" />
+			<key id="KEY_0" mapto="start" flags="m" />
+			<key id="KEY_PVR" mapto="start" flags="m" />
+			<key id="KEY_LIST" mapto="list" flags="m" />
 	</map>
 </keymap>
