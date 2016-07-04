@@ -1,0 +1,48 @@
+Opis:
+
+Wtyczka umożliwia pobranie obrazu prognozy pogody modelu UM z serwisu www.meteo.pl dla wybranej miejscowości. 
+
+Pod przyciskiem MENU/SETUP lub NIEBIESKIM znajduje się ekran konfiguracji. Można zdefiniować do 9 miejscowości.
+
+Po zainstalowaniu lista jest pusta, przejdź do konfiguracji i wciśnij klawisz OK by ustawić miejscowość. 
+Aby dodać kolejną: strzałka w dół i OK. Edycja: GÓRA/DÓŁ i OK. 
+Kasowanie wybranej pozycji: klawisz CZERWONY.
+Zapisanie zmian i powrót do okna z meteogramem: klawisz ZIELONY.
+Wyjście z edytora bez zapisywania: EXIT/BACK.
+Gwiazdka z lewej strony pokazuje, którą pozycję aktualnie edytujesz.
+
+Na głównym ekranie wyświetla się domyślnie pierwsza miejscowość z listy, aby zobaczyć kolejna wciśnij klawisz ZIELONY lub użyj klawiszy LEWO/PRAWO.
+
+Wiadomość ta wyświetla się po naciśnięciu INFO lub ŻÓŁTEGO.
+
+
+Strona domowa: http://areq.eu.org/ummeteo/
+
+
+Historia zmian:
+
+2016.06.27
+- dodano wyświetlanie instrukcji
+- dodano obsługę klawiszy lewo/prawo
+
+2016.05.21
+- keymapa dostosowana do pilota N
+- drobne poprawki kosmetyczne:
+  - polskie litery w nazwach województw i we wtyczce
+  - zmiana rozmiaru grafik w związku ze zmianą rozmiaru map na meteo.pl
+  - włączone skalowanie mapy - zależnie od godziny meteogram jest generowany w różnych rozmiarach
+  - wymuszone wyświetlanie obrazka "ładuję" - bez tego mapa nie jest odświeżana przy zmianie lokalizacji
+
+2016.01.26
+- aktualizacja adresu serwera z danymi meteo
+- kosmetyczne poprawki 2013.08.10
+- poprawka skina ekranu konfiguracji - teraz działa na VU VTI 6
+- kosmetyczne poprawki
+
+2013.08.08
+- poprawka skina - brak obramowania
+- poprawa zapisu ustawień - nie giną po restarcie E2
+- możliwość konfiguracji 9 ulubionych miejscowości, zmiana wyświetlanej miejscowości - klawisz zielony
+
+2013.08.03
+- premiera ;) 
