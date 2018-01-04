@@ -21,6 +21,11 @@ Strona domowa: http://areq.eu.org/ummeteo/
 
 Historia zmian:
 
+2017.12.28
+- dodano obsługę skórek FullHD (przeskalowano wtyczkę)
+- w przypadku znalezienia polecenia convert z paczki ImageMagick meteogramy są skalowane tym programem:
+  - skalowanie trwa dłuuuużej, ale jakość meteogramu jest lepsza niż po scale z E2
+
 2016.06.27
 - dodano wyświetlanie instrukcji
 - dodano obsługę klawiszy lewo/prawo
