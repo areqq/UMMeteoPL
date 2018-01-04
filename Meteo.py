@@ -1,7 +1,7 @@
 #!/usr/bin/python -u
 # -*- coding: UTF-8 -*-
 
-from Tools.Directories import resolveFilename, SCOPE_PLUGINS
+from Tools.Directories import resolveFilename, fileExists, SCOPE_PLUGINS
 from Screens.Screen import Screen
 from Components.Label import Label
 from Components.Pixmap import Pixmap
@@ -10,16 +10,34 @@ from Screens.ChoiceBox import ChoiceBox
 from Screens.MessageBox import MessageBox
 from Screens.TextBox import TextBox
 from twisted.web.client import getPage, downloadPage
+from Components.Console import Console
 import os,re
 
-version = '16.06.28'
+version = '17.12.28'
 
 PluginLocation = "Extensions/UMMeteoPL"
 PluginPath = resolveFilename(SCOPE_PLUGINS, PluginLocation)
 meteo_ini = PluginPath + '/meteo.ini'
 
 class Meteo(Screen):
-    skin="""
+    from enigma import getDesktop
+    screenWidth = getDesktop(0).size().width()
+    if screenWidth and screenWidth == 1920:
+        # FHD skin
+        skin="""
+        <screen name="UMMeteo" position="center,5" size="1365,1066" flags="wfNoBorder" backgroundColor="#00FFFFFF" >
+            <widget name="info" position="0,0" size="1620,31" font="Regular;27" halign="center"/>
+            <ePixmap position="0,31" size="420,990" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/leftfhd.png" transparent="1" alphatest="on" scale="1"/>
+            <widget name="myPic" position="420,31" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogramfhd.png" size="945,990" zPosition="1" alphatest="on" scale="1"/>
+            <eLabel text="Menu" position="0,1021" size="240,45" zPosition="2" font="Regular;33" halign="center" backgroundColor="blue" valign="center"/>
+            <eLabel text="Ulubione" position="240,1021" size="240,45" zPosition="2" font="Regular;33" halign="center" backgroundColor="green" valign="center"/>
+            <eLabel text="Info" position="480,1021" size="240,45" zPosition="2" font="Regular;33" halign="center" backgroundColor="yellow" valign="center"/>
+            <eLabel name="about" text="www.meteo.pl %s by areq 2016" position="720,1021" size="640,45" zPosition="2" font="Regular;33" halign="right" valign="center"/>
+            <eLabel name="pad" text=" " position="1360,1021" size="5,45" zPosition="2" font="Regular;33" halign="center" valign="center"/>
+        </screen>""" % version
+    else:
+        # HD skin
+        skin="""
         <screen name="UMMeteo" position="center,5" size="910,710" flags="wfNoBorder" backgroundColor="#00FFFFFF" >
             <widget name="info" position="0,0" size="910,20" font="Regular;18" halign="center"/>
             <ePixmap position="0,20" size="280,660" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/left.png" transparent="1" alphatest="on"/>
@@ -37,6 +55,10 @@ class Meteo(Screen):
         self["myPic"] = Pixmap()
         try:
             os.unlink('/tmp/meteo.png')
+        except:
+            pass
+        try:
+            os.unlink('/tmp/meteofhd.png')
         except:
             pass
         self["myActionMap"] = ActionMap(["MeteoActions"],
@@ -59,6 +81,12 @@ class Meteo(Screen):
         self.onLayoutFinish.append(self.layoutFinished)
 
     def layoutFinished(self):
+        from enigma import getDesktop
+        screenWidth = getDesktop(0).size().width()
+        if screenWidth and screenWidth == 1920:
+            self.fhdskin = True
+        else:
+            self.fhdskin = False
         self.load_ini()
 
     def load_ini(self):
@@ -81,19 +109,28 @@ class Meteo(Screen):
         self.active -= 1
         if self.active < 0:
             self.active = len(self.miejsca)-1
-        self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
+        #if self.fhdskin:
+        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
+        #else:
+        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
         self.start_meteo(self.miejsca[self.active])
 
     def next(self):
         self.active += 1
         if self.active >= len(self.miejsca):
             self.active = 0
-        self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
+        #if self.fhdskin:
+        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
+        #else:
+        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
         self.start_meteo(self.miejsca[self.active])
 
     def start(self):
         self.active = 0
-        self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
+        #if self.fhdskin:
+        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
+        #else:
+        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
         self.start_meteo(self.miejsca[self.active])
 
     def updateCB(self, html):
@@ -128,6 +165,11 @@ class Meteo(Screen):
 
     def start_meteo(self, id ):
         print "[UMMeteo] - miasto:", id
+        if self.fhdskin:
+            self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
+        else:
+            self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
+        self["info"].setText("Ładuję")
         url = "http://www.meteo.pl/um/php/meteorogram_id_um.php?ntype=0u&id=%s" % id
         getPage(url).addCallback(self.infoCB).addErrback(self.error)
 
@@ -152,7 +194,26 @@ class Meteo(Screen):
         self["info"].setText(o)
 
     def pngCB(self, raw):
-        self["myPic"].instance.setPixmapFromFile("/tmp/meteo.png")
+        if self.fhdskin:
+            if fileExists("/usr/bin/convert"):
+                # make convert - high quality scale
+                # v1: no spinner
+                convertcmd = "convert /tmp/meteo.png -filter quadratic -resize 945x990\\! -quality 11 /tmp/meteofhd.png"
+                # convertcmd = "convert /tmp/meteo.png -filter quadratic -resize 945x990\\! /tmp/meteofhd.bmp"
+                Console().ePopen(convertcmd,self.getConvertFinished)
+                # v2: spinner...
+                #os.system("convert /tmp/meteo.png -filter quadratic -resize 945x990\\! -quality 11 /tmp/meteofhd.png")
+                #self["myPic"].instance.setPixmapFromFile("/tmp/meteofhd.png")
+            else:
+                # load downloaded file - low quality scale
+                self["myPic"].instance.setPixmapFromFile("/tmp/meteo.png")
+        else:
+            self["myPic"].instance.setPixmapFromFile("/tmp/meteo.png")
+
+
+    def getConvertFinished(self, result, retval, extra_args):
+        self["myPic"].instance.setPixmapFromFile("/tmp/meteofhd.png")
+        # self["myPic"].instance.setPixmapFromFile("/tmp/meteofhd.bmp")
 
     def cancel(self):
         # print "[UMMeteo] - cancel\n"
@@ -195,5 +256,8 @@ class Meteo(Screen):
         answer = answer and answer[1]
         if answer:
             self.active = answer
-            self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
+            if self.fhdskin:
+                self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
+            else:
+                self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
             self.start_meteo(self.miejsca[self.active])

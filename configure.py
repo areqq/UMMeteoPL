@@ -15,22 +15,41 @@ PluginPath = resolveFilename(SCOPE_PLUGINS, PluginLocation)
 meteo_ini = PluginPath + '/meteo.ini'
 
 class Configure(Screen):
-	s = ''
-	for i in xrange(10):
-		s+= '<widget name="p%i" position="60, %i" size="840,34" font="Regular;20" valign="center"/>\n' % (i, 90 + (34*i)) 
-	skin = """
-	<screen name="Configure" position="160,100" size="960,520" title="Konfiguracja UM Meteo.pl" flags="wfNoBorder">
-	<eLabel text="Lista ulubionych miejscowości do sprawdzania prognozy pogody." position="10,5" size="900,25"  font="Regular;22" halign="center"/>
-	<eLabel text="Nawigacja: strzałki Góra/Dół/Prawo/Lewo     OK - edycja pozycji" position="10,30" size="900,25"  font="Regular;22" halign="center"/>
-	<eLabel text="Strona domowa: http://e2.areq.eu.org/ummeteo/" position="10,55" size="900,25"  font="Regular;22" halign="center"/>
-	%s
-	<widget name="pages" position="60,430" size="840,34" font="Regular;20" halign="right" valign="center"/>
-	<eLabel text="Usuń" position="0,485" size="180,35" zPosition="2" font="Regular;22" halign="center" backgroundColor="red" valign="center"/>
-	<eLabel text="Dodaj stronę" position="180,485" size="200,35" zPosition="2" font="Regular;22" halign="center" backgroundColor="blue" valign="center"/>
-	<eLabel text="EXIT/BACK - wyjście bez zapisu" position="360,485" size="420,35" zPosition="2" font="Regular;22" halign="center" valign="center"/>
-	<eLabel text="Zapisz i wyjdź" position="780,485" size="180,35" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" valign="center"/>
-
-	</screen>"""  % s
+	from enigma import getDesktop
+	screenWidth = getDesktop(0).size().width()
+	s=""
+	if screenWidth and screenWidth == 1920:
+		# FHD skin
+		for i in xrange(10):
+			s+= '<widget name="p%i" position="90, %i" size="1260,51" font="Regular;30" valign="center"/>\n' % (i, 135 + (51*i)) 
+		skin = """
+		<screen name="Configure" position="240,150" size="1440,780" title="Konfiguracja UM Meteo.pl" flags="wfNoBorder">
+		<eLabel text="Lista ulubionych miejscowości do sprawdzania prognozy pogody." position="15,7" size="1410,38"  font="Regular;33" halign="center"/>
+		<eLabel text="Nawigacja: strzałki Góra/Dół/Prawo/Lewo     OK - edycja pozycji" position="15,45" size="1410,38"  font="Regular;33" halign="center"/>
+		<eLabel text="Strona domowa: http://e2.areq.eu.org/ummeteo/" position="10,83" size="1410,38"  font="Regular;33" halign="center"/>
+		%s
+		<widget name="pages" position="90,645" size="1260,51" font="Regular;20" halign="right" valign="center"/>
+		<eLabel text="Usuń" position="0,724" size="270,56" zPosition="2" font="Regular;33" halign="center" backgroundColor="red" valign="center"/>
+		<eLabel text="Dodaj stronę" position="270,724" size="270,56" zPosition="2" font="Regular;33" halign="center" backgroundColor="blue" valign="center"/>
+		<eLabel text="EXIT/BACK - wyjście bez zapisu" position="540,724" size="630,56" zPosition="2" font="Regular;33" halign="center" valign="center"/>
+		<eLabel text="Zapisz i wyjdź" position="1170,724" size="270,56" zPosition="2" font="Regular;33" halign="center" backgroundColor="green" valign="center"/>
+		</screen>"""  % s
+	else:
+		# HD skin
+		for i in xrange(10):
+			s+= '<widget name="p%i" position="60, %i" size="840,34" font="Regular;20" valign="center"/>\n' % (i, 90 + (34*i)) 
+		skin = """
+		<screen name="Configure" position="160,100" size="960,520" title="Konfiguracja UM Meteo.pl" flags="wfNoBorder">
+		<eLabel text="Lista ulubionych miejscowości do sprawdzania prognozy pogody." position="10,5" size="940,25"  font="Regular;22" halign="center"/>
+		<eLabel text="Nawigacja: strzałki Góra/Dół/Prawo/Lewo     OK - edycja pozycji" position="10,30" size="940,25"  font="Regular;22" halign="center"/>
+		<eLabel text="Strona domowa: http://e2.areq.eu.org/ummeteo/" position="10,55" size="940,25"  font="Regular;22" halign="center"/>
+		%s
+		<widget name="pages" position="60,430" size="840,34" font="Regular;20" halign="right" valign="center"/>
+		<eLabel text="Usuń" position="0,485" size="180,35" zPosition="2" font="Regular;22" halign="center" backgroundColor="red" valign="center"/>
+		<eLabel text="Dodaj stronę" position="180,485" size="180,35" zPosition="2" font="Regular;22" halign="center" backgroundColor="blue" valign="center"/>
+		<eLabel text="EXIT/BACK - wyjście bez zapisu" position="360,485" size="420,35" zPosition="2" font="Regular;22" halign="center" valign="center"/>
+		<eLabel text="Zapisz i wyjdź" position="780,485" size="180,35" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" valign="center"/>
+		</screen>"""  % s
 
 	def __init__(self, session, args = None):
 		self.session = session
