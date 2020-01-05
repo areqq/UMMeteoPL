@@ -180,7 +180,7 @@ class Meteo(Screen):
     def infoCB(self, html):
         upng = "http://www.meteo.pl/um/metco/mgram_pict.php?ntype=0u&ffdate=%s&row=%s&col=%s&lang=pl"
         #var fcstdate = "2013080306";var ntype ="0u";var lang ="pl";var id="2119";var act_x = 208;var act_y = 393;
-        r = r'.*fcstdate = "(201\d{7})";.*var id="(\d+)";var act_x = (\d+);var act_y = (\d+);.*div id=.model_napis[^\n]+\n[^\n]+\n(.*)\<\/font...div.*'
+        r = r'.*fcstdate = "(202\d{7})";.*var id="(\d+)";var act_x = (\d+);var act_y = (\d+);.*div id=.model_napis[^\n]+\n[^\n]+\n(.*)\<\/font...div.*'
         m = re.search(r, html, re.M|re.DOTALL)
         if m:
             d, id, x, y, o = m.groups()
