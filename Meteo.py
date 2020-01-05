@@ -13,7 +13,7 @@ from twisted.web.client import getPage, downloadPage
 from Components.Console import Console
 import os,re
 
-version = '17.12.28'
+version = '20.01.05'
 
 PluginLocation = "Extensions/UMMeteoPL"
 PluginPath = resolveFilename(SCOPE_PLUGINS, PluginLocation)
@@ -32,7 +32,7 @@ class Meteo(Screen):
             <eLabel text="Menu" position="0,1021" size="240,45" zPosition="2" font="Regular;33" halign="center" backgroundColor="blue" valign="center"/>
             <eLabel text="Ulubione" position="240,1021" size="240,45" zPosition="2" font="Regular;33" halign="center" backgroundColor="green" valign="center"/>
             <eLabel text="Info" position="480,1021" size="240,45" zPosition="2" font="Regular;33" halign="center" backgroundColor="yellow" valign="center"/>
-            <eLabel name="about" text="www.meteo.pl %s by areq 2016" position="720,1021" size="640,45" zPosition="2" font="Regular;33" halign="right" valign="center"/>
+            <eLabel name="about" text="www.meteo.pl %s by areq 2019" position="720,1021" size="640,45" zPosition="2" font="Regular;33" halign="right" valign="center"/>
             <eLabel name="pad" text=" " position="1360,1021" size="5,45" zPosition="2" font="Regular;33" halign="center" valign="center"/>
         </screen>""" % version
     else:
@@ -45,7 +45,7 @@ class Meteo(Screen):
             <eLabel text="Menu" position="0,680" size="160,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="blue" valign="center"/>
             <eLabel text="Ulubione" position="160,680" size="160,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" valign="center"/>
             <eLabel text="Info" position="320,680" size="160,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="yellow" valign="center"/>
-            <eLabel name="about" text="www.meteo.pl %s by areq 2016" position="480,680" size="426,30" zPosition="2" font="Regular;22" halign="right" valign="center"/>
+            <eLabel name="about" text="www.meteo.pl %s by areq 2019" position="480,680" size="426,30" zPosition="2" font="Regular;22" halign="right" valign="center"/>
             <eLabel name="pad" text=" " position="906,680" size="4,30" zPosition="2" font="Regular;22" halign="center" valign="center"/>
         </screen>""" % version
 
