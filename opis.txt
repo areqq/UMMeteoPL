@@ -21,6 +21,11 @@ Strona domowa: http://areq.eu.org/ummeteo/
 
 Historia zmian:
 
+2020.01.05
+- poprawka parsowania daty meteogramu, przwyrócono działanie w roku 2020
+- poprawka ekranu konfiguracji, usunięcie błedu w przypadku braku pliku konfiguracyjnego
+- optymalizacja png FHD
+
 2017.12.28
 - dodano obsługę skórek FullHD (przeskalowano wtyczkę)
 - w przypadku znalezienia polecenia convert z paczki ImageMagick meteogramy są skalowane tym programem:
