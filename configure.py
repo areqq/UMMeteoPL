@@ -63,7 +63,7 @@ class Configure(Screen):
 					i+=1
 		except:
 			pass
-		self.num_pages = 1 + ((len(self.miejsca)-1) // 10)
+		self.num_pages = max(1, 1 + ((len(self.miejsca)-1) // 10))
 		for k in xrange(i,self.num_pages*10):
 			self.miejsca.append('')
 		self.active = 0
