@@ -20,7 +20,7 @@ class Configure(Screen):
 	s=""
 	if screenWidth and screenWidth == 1920:
 		# FHD skin
-		for i in xrange(10):
+		for i in range(10):
 			s+= '<widget name="p%i" position="90, %i" size="1260,51" font="Regular;30" valign="center"/>\n' % (i, 135 + (51*i)) 
 		skin = """
 		<screen name="Configure" position="240,150" size="1440,780" title="Konfiguracja UM Meteo.pl" flags="wfNoBorder">
@@ -36,7 +36,7 @@ class Configure(Screen):
 		</screen>"""  % s
 	else:
 		# HD skin
-		for i in xrange(10):
+		for i in range(10):
 			s+= '<widget name="p%i" position="60, %i" size="840,34" font="Regular;20" valign="center"/>\n' % (i, 90 + (34*i)) 
 		skin = """
 		<screen name="Configure" position="160,100" size="960,520" title="Konfiguracja UM Meteo.pl" flags="wfNoBorder">
@@ -64,11 +64,11 @@ class Configure(Screen):
 		except:
 			pass
 		self.num_pages = max(1, 1 + ((len(self.miejsca)-1) // 10))
-		for k in xrange(i,self.num_pages*10):
+		for k in range(i,self.num_pages*10):
 			self.miejsca.append('')
 		self.active = 0
 		Screen.__init__(self, session)
-		for i in xrange(10):
+		for i in range(10):
 			self["p%i" % i] = Label('<brak>')
 		self["pages"] = Label('<brak>')
 		
@@ -115,7 +115,7 @@ class Configure(Screen):
 
 	def addpage(self):
 		self.num_pages += 1
-		for k in xrange((self.num_pages-1)*10,self.num_pages*10):
+		for k in range((self.num_pages-1)*10,self.num_pages*10):
 			self.miejsca.append('')
 		self.active = (self.num_pages-1)*10
 		self.print_miejsca()
@@ -136,7 +136,7 @@ class Configure(Screen):
 
 	def print_miejsca(self):
 		self.page = self.active // 10
-		for i in xrange(10):
+		for i in range(10):
 			if self.miejsca[i+10*self.page]:
 				s = '  %s' % self.miejsca[i+10*self.page]
 			else:
@@ -186,6 +186,6 @@ class Configure(Screen):
 		answer = answer and answer[1]
 		if answer:
 			id = answer.split()[0]
-			print "[UMMeteo] - wybrano:", id
+			print("[UMMeteo] - wybrano:", id)
 			self.miejsca[self.active] = answer.rstrip('\n')
 			self.print_miejsca()
