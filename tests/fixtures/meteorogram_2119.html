@@ -1,0 +1,171 @@
+<script language='JavaScript'>var UM_YYYY=2026;var UM_MM=10;var UM_DD=9;var UM_ST=12;var UM_LEN=120;var UM_SYYYY="2026";var UM_SMM="10";var UM_SDD="09";var UM_SST="12";var FLength="120";</script><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<HTML>
+<HEAD>
+
+<TITLE>Meteorogramy - meteorograms</TITLE>
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-2">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<META NAME="description" CONTENT="Numeryczna prognoza pogody ICM">
+<META NAME="keywords" CONTENT="numeryczna prognoza pogody pogoda ICM meteo forecast meteorology weather poland">
+<link rel="stylesheet" type="text/css" href="/css/style_all.css">
+
+<style type="text/css" media="print">
+page {
+  size:landscape;
+}
+</style>
+
+<!-- mobile -->
+<script src="https://static.dev.meteo.pl/mobile-migration/migration-obf.js" defer></script>
+
+<script type="text/javascript"> 
+var w2g = w2g || {}; 
+w2g.hostname = 'meteo.pl'; //domain URL 
+w2g.targeting = {
+}; 
+</script> 
+
+<script
+    async
+    src="https://securepubads.g.doubleclick.net/tag/js/gpt.js"
+    crossorigin="anonymous"
+></script>
+
+<script type="text/javascript" src="https://lib.wtg-ads.com/lib.min.js" async></script>
+
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-140493958-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-140493958-1');
+</script>
+
+<script language="JavaScript">
+var fcstdate = "2026100912";var ntype ="0u";var lang ="pl";var id="2119";var act_x = 208;var act_y = 393;
+var min_x = 17;
+var min_y = 17;
+var max_x = 430;
+var max_y = 598;
+
+var pict_temp = new Image();
+
+function print_this() {
+
+window.open("http://www.meteo.pl/um/php/meteorogram_id_um.php?ntype=0u&id="+id+"&fdate="+fcstdate+"&print=1","mgram_id_um_"+id+"_"+fcstdate+"_print","width=840,height=800,toolbar=no,menubar=no,scrollbars=yes,resizable=yes");
+
+}
+
+function preload_pict(pict_name) {
+  pict_temp = new Image();
+  pict_temp.src=""+pict_name; 
+  return pict_temp.src;
+}
+
+function show_sciemniacz() {
+document.getElementById('sciemniacz').style.visibility='visible';
+document.getElementById('kolko').style.visibility='visible';
+}
+
+function hide_sciemniacz() {
+document.getElementById('sciemniacz').style.visibility='hidden';
+document.getElementById('kolko').style.visibility='hidden';
+}
+
+function mgr_nr(x,y) {
+
+//	show_sciemniacz();
+
+	var pict_name="/um/metco/mgram_pict.php?ntype="+ntype+"&fdate="+fcstdate+"&row="+y+"&col="+x+"&lang="+lang;
+	document.images['meteorogram'].src=preload_pict(pict_name);
+
+//	act_x=x;
+//	act_y=y;
+
+// 	window.opener.show_kwadrA(act_x,act_y);
+}
+
+function write_xy_ne() {
+
+        xp = (act_x-min_x)/3;
+        yp = (act_y-min_y)/3;
+
+        lnlt_x = yp*51+xp;
+
+	document.getElementById('napis_xy_ne').innerHTML="x="+act_x+"&nbsp;&nbsp; y="+act_y+" &nbsp;&nbsp;&nbsp; ";
+
+}
+
+function Start() {
+
+	mgr_nr(act_x,act_y);
+        	
+}
+
+</script>
+
+</HEAD>
+
+
+<body style='background-color: #fff;' onLoad='Start()'>
+
+
+<div style='position: absolute; margin: 0px; padding: 0px; left:0px; top:0px; width: 100%; height: 90px; background-color: #cda369;'></div> 
+<div style='position: absolute; margin: 0px; padding: 0px; left:0px; top:0px; height:90px; width:1250px; background-color: #cda369; background-image:url("/img/gora_tlo2.png"); background-repeat:repeat-y;'></div> 
+
+<div style='position: absolute; left: 20px; top: 0px;'><IMG SRC="/img/POL_upr_okr.png" height=82px vspace=3 hspace=2 border=0 ALT="UW"></div>
+<div style='position: absolute; left: 115px; top: 0px;'><IMG src="/img/logo_icm_male_nowe.png" height=65px border=0 vspace=12 hspace=10 ALT="ICM"></div>
+
+<div id='model_napis' style='position: absolute; left:300px; top:10px; width: 500px; height: 40px; font-size: 32px;  color:#edd389; font-weight: 700;'>UM
+<BR><font style='color: #fff; font-weight: 700; font-size: 14px;'>
+Dobre, pow.radziejowski, woj.kujawsko-pomorskie&nbsp;&nbsp;</font></div>
+
+<div style='position: absolute; left:1160px; top: 8px; background-color: #edc379'><a href='javascript:window.close()'><img src="/img/exit.gif" border=0 vspace=5 hspace=5></a></div>
+<div style='position: absolute; left:1100px; top: 8px; background-color: #edc379'><a href='javascript:print_this()'><img src="/img/printer.gif" border=0 vspace=5 hspace=5></a></div>
+
+
+<div style='position:absolute;top:100px;left:77px;width:786px;height:300px;'> 
+<div id="wtg_sg_bill_top"></div>
+<!-- <div id="wtg_meteorogram_bill_top"></div> //-->
+</div>
+
+<div style='position:absolute;top:370px;left:30px;width:911px;'>
+<div style='position: absolute; top:0;left:5px;width:1200px;height:10px;'><BR></div>
+
+<div style='position: absolute; top:0; left: 50px; width: 280px;'>
+<img src='/um/metco/leg_um_pl_cbase_256.png' border=0></div>
+
+<div style='position: absolute; top:0; left: 331px; width: 630px;'>
+<IMG id='meteorogram' SRC='' onLoad='hide_sciemniacz()'></div>
+
+<div style='position: absolute; top:0; left: 961px; width: 336px; height:630px;'>
+<div id="wtg_sidebar_1"></div>
+<!-- <div id="wtg_meteorogram_sidebar_1"></div> //-->
+</div> 
+</div>
+
+<div style='position:absolute;top:1030px;left:77px;width:786px;height:300px;'>
+<div id="wtg_sg_bill_bottom"></div>
+<!-- <div id="wtg_meteogram_bill_bottom"></div> //-->
+</div>
+
+<div id='sciemniacz'></div>
+<div id='kolko'></div>
+
+
+<div style="position: absolute; top: 1310px; left: 0px; width: 100%; height: 50px; background-color: #fde399;">
+<div style="position: absolute; left:0px; line-height:50px; text-align:center; width:1200px;">
+<A HREF='http://www.meteo.pl/um/php/meteorogram_id_um.php?ntype=0u&id=2119' style='color: #a00; font-weight: 700'>BEZPOŚREDNI LINK DO METEOROGRAMU</A></div>
+</div>
+
+
+
+</BODY>
+</HTML>
+
+

@@ -1,191 +1,147 @@
-#!/usr/bin/python -u
-# -*- coding: UTF-8 -*-
-
-from Tools.Directories import resolveFilename, SCOPE_PLUGINS
-from Screens.Screen import Screen
-from Screens.MessageBox import MessageBox
-from Components.Label import Label
+# -*- coding: utf-8 -*-
 from Components.ActionMap import ActionMap
+from Components.Label import Label
+from Components.MenuList import MenuList
 from Screens.ChoiceBox import ChoiceBox
-from skin import parseColor
-# from enigma import eWidget, eLabel, RT_VALIGN_TOP, RT_VALIGN_CENTER, RT_VALIGN_BOTTOM
+from Screens.MessageBox import MessageBox
+from Screens.Screen import Screen
+from Screens.VirtualKeyBoard import VirtualKeyBoard
 
-PluginLocation = "Extensions/UMMeteoPL"
-PluginPath = resolveFilename(SCOPE_PLUGINS, PluginLocation)
-meteo_ini = PluginPath + '/meteo.ini'
+from . import settings, storage
+from .Meteo import BLUE, GREEN, RED, YELLOW, s
+
+ADD = "+ Dodaj miejscowość"
+SEARCH = object()
+
+
+def build_skin():
+    width, height = 820, 560
+    keys = []
+    x = 20
+    for colour, text in ((RED, "Usuń"), (GREEN, "Zapisz"), (YELLOW, "W górę"), (BLUE, "W dół")):
+        keys.append(f'<eLabel position="{s(x)},{s(height - 40)}" size="{s(180)},{s(4)}" backgroundColor="{colour}" />')
+        keys.append(f'<eLabel text="{text}" position="{s(x)},{s(height - 34)}" size="{s(180)},{s(30)}" font="Regular;{s(20)}" halign="center" valign="center" transparent="1" />')
+        x += 200
+    keys = "\n".join(keys)
+    return f"""
+    <screen name="UMMeteoPLConfigure" position="center,center" size="{s(width)},{s(height)}" title="UM Meteo.pl - ulubione">
+        <widget name="hint" position="{s(20)},{s(10)}" size="{s(width - 40)},{s(56)}" font="Regular;{s(18)}" valign="center" />
+        <widget name="list" position="{s(20)},{s(76)}" size="{s(width - 40)},{s(height - 130)}" font="Regular;{s(22)}" itemHeight="{s(34)}" scrollbarMode="showOnDemand" />
+        {keys}
+    </screen>"""
+
 
 class Configure(Screen):
-	from enigma import getDesktop
-	screenWidth = getDesktop(0).size().width()
-	s=""
-	if screenWidth and screenWidth == 1920:
-		# FHD skin
-		for i in range(10):
-			s+= '<widget name="p%i" position="90, %i" size="1260,51" font="Regular;30" valign="center"/>\n' % (i, 135 + (51*i)) 
-		skin = """
-		<screen name="Configure" position="240,150" size="1440,780" title="Konfiguracja UM Meteo.pl" flags="wfNoBorder">
-		<eLabel text="Lista ulubionych miejscowości do sprawdzania prognozy pogody." position="15,7" size="1410,38"  font="Regular;33" halign="center"/>
-		<eLabel text="Nawigacja: strzałki Góra/Dół/Prawo/Lewo     OK - edycja pozycji" position="15,45" size="1410,38"  font="Regular;33" halign="center"/>
-		<eLabel text="Strona domowa: http://e2.areq.eu.org/ummeteo/" position="10,83" size="1410,38"  font="Regular;33" halign="center"/>
-		%s
-		<widget name="pages" position="90,645" size="1260,51" font="Regular;20" halign="right" valign="center"/>
-		<eLabel text="Usuń" position="0,724" size="270,56" zPosition="2" font="Regular;33" halign="center" backgroundColor="red" valign="center"/>
-		<eLabel text="Dodaj stronę" position="270,724" size="270,56" zPosition="2" font="Regular;33" halign="center" backgroundColor="blue" valign="center"/>
-		<eLabel text="EXIT/BACK - wyjście bez zapisu" position="540,724" size="630,56" zPosition="2" font="Regular;33" halign="center" valign="center"/>
-		<eLabel text="Zapisz i wyjdź" position="1170,724" size="270,56" zPosition="2" font="Regular;33" halign="center" backgroundColor="green" valign="center"/>
-		</screen>"""  % s
-	else:
-		# HD skin
-		for i in range(10):
-			s+= '<widget name="p%i" position="60, %i" size="840,34" font="Regular;20" valign="center"/>\n' % (i, 90 + (34*i)) 
-		skin = """
-		<screen name="Configure" position="160,100" size="960,520" title="Konfiguracja UM Meteo.pl" flags="wfNoBorder">
-		<eLabel text="Lista ulubionych miejscowości do sprawdzania prognozy pogody." position="10,5" size="940,25"  font="Regular;22" halign="center"/>
-		<eLabel text="Nawigacja: strzałki Góra/Dół/Prawo/Lewo     OK - edycja pozycji" position="10,30" size="940,25"  font="Regular;22" halign="center"/>
-		<eLabel text="Strona domowa: http://e2.areq.eu.org/ummeteo/" position="10,55" size="940,25"  font="Regular;22" halign="center"/>
-		%s
-		<widget name="pages" position="60,430" size="840,34" font="Regular;20" halign="right" valign="center"/>
-		<eLabel text="Usuń" position="0,485" size="180,35" zPosition="2" font="Regular;22" halign="center" backgroundColor="red" valign="center"/>
-		<eLabel text="Dodaj stronę" position="180,485" size="180,35" zPosition="2" font="Regular;22" halign="center" backgroundColor="blue" valign="center"/>
-		<eLabel text="EXIT/BACK - wyjście bez zapisu" position="360,485" size="420,35" zPosition="2" font="Regular;22" halign="center" valign="center"/>
-		<eLabel text="Zapisz i wyjdź" position="780,485" size="180,35" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" valign="center"/>
-		</screen>"""  % s
+    def __init__(self, session):
+        self.skin = build_skin()
+        Screen.__init__(self, session)
+        self.setTitle("UM Meteo.pl - ulubione")
+        self.locations = settings.favourites()
+        self.dirty = False
+        self["hint"] = Label("OK - zmień lub dodaj miejscowość.  Kolejność listy to kolejność "
+                             "przełączania na ekranie meteogramu (klawisze 1-9).")
+        self["list"] = MenuList([])
+        self["actions"] = ActionMap(["MeteoActions"], {
+            "ok": self.edit,
+            "cancel": self.exit,
+            "up": lambda: self["list"].up(),
+            "down": lambda: self["list"].down(),
+            "left": lambda: self["list"].pageUp(),
+            "right": lambda: self["list"].pageDown(),
+            "red": self.remove,
+            "green": self.save,
+            "yellow": lambda: self.move(-1),
+            "blue": lambda: self.move(1),
+        }, -1)
+        self.onLayoutFinish.append(self.refresh)
 
-	def __init__(self, session, args = None):
-		self.session = session
-		self.miejsca = []
-		self.page = 0
-		i = 0
-		try:
-			for l in open(meteo_ini):
-				if len(l) > 4:
-					self.miejsca.append(l.rstrip('\n'))
-					i+=1
-		except:
-			pass
-		self.num_pages = max(1, 1 + ((len(self.miejsca)-1) // 10))
-		for k in range(i,self.num_pages*10):
-			self.miejsca.append('')
-		self.active = 0
-		Screen.__init__(self, session)
-		for i in range(10):
-			self["p%i" % i] = Label('<brak>')
-		self["pages"] = Label('<brak>')
-		
-		self["myActionMap"] =  ActionMap(["MeteoActions"],
-		{
-		"cancel": self.close, 
-		"up": self.up,
-		"down" : self.down,
-		"left": self.left,
-		"right" : self.right,
-		"red" : self.red,
-		"green" : self.green,
-		"blue" : self.addpage,
-		"ok" : self.edit
-		 }, -1)
+    def refresh(self, index=None):
+        self["list"].setList([f"{n + 1}. {loc.name}" for n, loc in enumerate(self.locations)] + [ADD])
+        if index is not None:
+            self["list"].moveToIndex(index)
 
-		self.onLayoutFinish.append(self.layoutFinished)
+    def current(self):
+        """Index of the selected favourite or None on the 'add' row."""
+        index = self["list"].getSelectionIndex()
+        return index if index < len(self.locations) else None
 
-	def layoutFinished(self):
-		self.print_miejsca()
+    # --- editing -----------------------------------------------------------
+    def remove(self):
+        index = self.current()
+        if index is not None:
+            del self.locations[index]
+            self.dirty = True
+            self.refresh(min(index, len(self.locations)))
 
-	def red(self):
-		self.miejsca[self.active] = ''
-		self.print_miejsca()
+    def move(self, step):
+        index = self.current()
+        target = None if index is None else index + step
+        if target is None or not 0 <= target < len(self.locations):
+            return
+        loc = self.locations
+        loc[index], loc[target] = loc[target], loc[index]
+        self.dirty = True
+        self.refresh(target)
 
-	def green(self):
-		with open(meteo_ini, 'w') as f:
-			for l in self.miejsca:
-				if l:
-					f.write(l+"\n")
-		self.close()
+    def edit(self):
+        choices = [("Szukaj po nazwie...", SEARCH)] + [(f"woj. {label}", woj) for label, woj in storage.VOIVODESHIPS]
+        self.session.openWithCallback(self.voivodeship_chosen, ChoiceBox, title="Wybierz województwo lub wyszukaj",
+                                      list=choices, windowTitle="Dodaj miejscowość")
 
-	def up(self):
-		self.kursor(-1)
+    def voivodeship_chosen(self, answer):
+        if answer is None:
+            return
+        if answer[1] is SEARCH:
+            self.session.openWithCallback(self.search, VirtualKeyBoard, title="Nazwa miejscowości (bez polskich znaków też zadziała):")
+            return
+        choices = [(loc.name, loc) for loc in storage.towns(answer[1])]
+        self.session.openWithCallback(self.town_chosen, ChoiceBox, title="Wybierz miejscowość",
+                                      list=choices, windowTitle=answer[0])
 
-	def down(self):
-		self.kursor(1)
+    def search(self, text):
+        if not text:
+            return
+        found = storage.search_towns(text)
+        if not found:
+            self.session.openWithCallback(lambda *_: self.edit(), MessageBox,
+                                          f"Nie znaleziono miejscowości „{text}”.", MessageBox.TYPE_INFO, timeout=5)
+            return
+        choices = [(f"{loc.name} (woj. {woj})", loc) for loc, woj in found]
+        self.session.openWithCallback(self.town_chosen, ChoiceBox, title=f"Wyniki dla „{text}”: {len(found)}",
+                                      list=choices, windowTitle="Wybierz miejscowość")
 
-	def left(self):
-		self.kursor(-10)
+    def town_chosen(self, answer):
+        if answer is None:
+            return
+        loc = answer[1]
+        index = self.current()
+        if loc in self.locations and self.locations.index(loc) != index:
+            self.refresh(self.locations.index(loc))
+            self.session.open(MessageBox, f"{loc.name} już jest na liście.", MessageBox.TYPE_INFO, timeout=3)
+            return
+        if index is None:
+            self.locations.append(loc)
+            index = len(self.locations) - 1
+        else:
+            self.locations[index] = loc
+        self.dirty = True
+        self.refresh(index)
 
-	def right(self):
-		self.kursor(10)
+    # --- leaving -----------------------------------------------------------
+    def save(self):
+        settings.save_favourites(self.locations)
+        self.close(True)
 
-	def addpage(self):
-		self.num_pages += 1
-		for k in range((self.num_pages-1)*10,self.num_pages*10):
-			self.miejsca.append('')
-		self.active = (self.num_pages-1)*10
-		self.print_miejsca()
+    def exit(self):
+        if not self.dirty:
+            return self.close(False)
+        choices = [("Zapisz i wyjdź", "save"), ("Wyjdź bez zapisywania", "discard"), ("Wróć do edycji", None)]
+        self.session.openWithCallback(self.exit_chosen, ChoiceBox, title="Lista została zmieniona.",
+                                      list=choices, windowTitle="Zapisać zmiany?")
 
-	def kursor(self, kierunek):
-		self.active += kierunek
-		if self.active < 0:
-			if abs(kierunek) == 1:
-				self.active = (self.num_pages*10)-1
-			else:
-				self.active = 0
-		if self.active > (self.num_pages*10)-1:
-			if abs(kierunek) == 1:
-				self.active = 0
-			else:
-				self.active = (self.num_pages*10)-1
-		self.print_miejsca()
-
-	def print_miejsca(self):
-		self.page = self.active // 10
-		for i in range(10):
-			if self.miejsca[i+10*self.page]:
-				s = '  %s' % self.miejsca[i+10*self.page]
-			else:
-				s = '  <niezdefiniowane>'
-			if i+10*self.page == self.active:
-				self["p%i" %i].instance.setBackgroundColor(parseColor("#0016426e"))
-			else:
-				self["p%i" %i].instance.clearBackgroundColor()
-			# self["p%i" %i].instance.setVAlign(eLabel.alignCenter)
-			self["p%i" %i].setText("")
-			self["p%i" %i].setText(s)
-		p = 'strona %i/%i' % (self.page+1, self.num_pages)
-		self["pages"].setText(p)
-
-	def edit(self):	
-		askList = [
-		['dolnośląskie','dolnoslaskie'],
-		['kujawsko-pomorskie','kujawsko-pomorskie'],
-		['lubelskie','lubelskie'],
-		['lubuskie','lubuskie'],
-		['łódzkie','lodzkie'],
-		['małopolskie','malopolskie'],
-		['mazowieckie','mazowieckie'],
-		['opolskie','opolskie'],
-		['podkarpackie','podkarpackie'],
-		['podlaskie','podlaskie'],
-		['pomorskie','pomorskie'],
-		['śląskie','slaskie'],
-		['świętokrzyskie','swietokrzyskie'],
-		['warmińsko-mazurskie','warminsko-mazurskie'],
-		['wielkopolskie','wielkopolskie'],
-		['zachodniopomorskie','zachodniopomorskie']]
-
-		dei = self.session.openWithCallback(self.wojCB, ChoiceBox, title="Strona domowa: http://e2.areq.eu.org/", list=askList)
-		dei.setTitle(_("Wybierz województwo"))
-
-	def wojCB(self, answer):
-		answer = answer and answer[1]
-		if answer:
-			askList = []
-			for l in open('%s/woj/%s' % (PluginPath,answer)):
-				askList.append([l, l])
-			dei = self.session.openWithCallback(self.miejsceCB, ChoiceBox, title="Wybierz miejscowość", list=askList)
-			dei.setTitle("Województwo %s" % answer)
-
-	def miejsceCB(self, answer):
-		answer = answer and answer[1]
-		if answer:
-			id = answer.split()[0]
-			print("[UMMeteo] - wybrano:", id)
-			self.miejsca[self.active] = answer.rstrip('\n')
-			self.print_miejsca()
+    def exit_chosen(self, answer):
+        action = answer and answer[1]
+        if action == "save":
+            self.save()
+        elif action == "discard":
+            self.close(False)

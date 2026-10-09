@@ -1,264 +1,272 @@
-#!/usr/bin/python -u
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
+import os
+import time
+from socket import timeout as SocketTimeout
+from urllib.error import HTTPError, URLError
 
-from Tools.Directories import resolveFilename, fileExists, SCOPE_PLUGINS
-from Screens.Screen import Screen
+from enigma import BT_HALIGN_CENTER, BT_VALIGN_BOTTOM, ePicLoad, gRGB, getDesktop
+from twisted.internet.threads import deferToThread
+
+from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.Pixmap import Pixmap
-from Components.ActionMap import ActionMap
 from Screens.ChoiceBox import ChoiceBox
-from Screens.MessageBox import MessageBox
+from Screens.Screen import Screen
 from Screens.TextBox import TextBox
-from Components.Console import Console
-import os,re
-from Plugins.Extensions.UMMeteoPL.aqtools import getURL, downloadURL
 
-version = '20.01.05'
+from . import meteogram, settings, storage
 
-PluginLocation = "Extensions/UMMeteoPL"
-PluginPath = resolveFilename(SCOPE_PLUGINS, PluginLocation)
-meteo_ini = PluginPath + '/meteo.ini'
+VERSION = "26.10.09"
+TMP_DIR = "/tmp/ummeteo"
+
+SCALE = getDesktop(0).size().height() / 720.0
+
+
+def s(value):
+    """Skin coordinate designed for 1280x720 -> current resolution."""
+    return int(round(value * SCALE))
+
+
+def keys_bar(y, width, items, bg):
+    """Footer with coloured key markers: [(colour, text, width), ...]."""
+    out = [f'<eLabel position="0,{s(y)}" size="{s(width)},{s(30)}" backgroundColor="{bg}" />']
+    x = 10
+    for colour, text, w in items:
+        out.append(f'<eLabel position="{s(x)},{s(y + 8)}" size="{s(14)},{s(14)}" backgroundColor="{colour}" zPosition="1" />')
+        out.append(f'<eLabel text="{text}" position="{s(x + 20)},{s(y)}" size="{s(w - 24)},{s(30)}" font="Regular;{s(17)}" '
+                   f'valign="center" foregroundColor="#00202020" backgroundColor="{bg}" zPosition="1" />')
+        x += w
+    return "\n".join(out)
+
+
+RED, GREEN, YELLOW, BLUE = "#00e04040", "#0030b030", "#00e0c020", "#003070e0"
+
+
+def build_skin():
+    legend = "leftfhd.png" if SCALE >= 1.5 else "left.png"
+    header, chart_w, chart_h, legend_w = 26, meteogram.CHART_WIDTH, meteogram.CHART_HEIGHT, 280
+    width, footer_y = legend_w + chart_w, header + chart_h
+    return f"""
+    <screen name="UMMeteoPL" position="center,center" size="{s(width)},{s(footer_y + 30)}" flags="wfNoBorder" backgroundColor="#00ffffff" title="UM Meteo.pl">
+        <widget name="title" position="{s(10)},0" size="{s(500)},{s(header)}" font="Regular;{s(20)}" valign="center" foregroundColor="#00202020" backgroundColor="#00ffffff" />
+        <widget name="status" position="{s(510)},0" size="{s(width - 520)},{s(header)}" font="Regular;{s(16)}" halign="right" valign="center" foregroundColor="#00505050" backgroundColor="#00ffffff" />
+        <ePixmap position="0,{s(header)}" size="{s(legend_w)},{s(chart_h)}" pixmap="{storage.PLUGIN_DIR}/{legend}" scale="1" />
+        <widget name="chart" position="{s(legend_w)},{s(header)}" size="{s(chart_w)},{s(chart_h)}" zPosition="1" />
+        {keys_bar(footer_y, width, [(RED, "Odśwież", 110), (GREEN, "Następna", 115), (YELLOW, "Pomoc", 100), (BLUE, "Ustawienia", 125)], "#00ececec")}
+        <eLabel text="OK lista   &lt; &gt; zmiana   1-9 skok" position="{s(460)},{s(footer_y)}" size="{s(width - 470)},{s(30)}" font="Regular;{s(16)}" halign="right" valign="center" foregroundColor="#00606060" backgroundColor="#00ececec" zPosition="1" />
+    </screen>"""
+
+
+def describe_error(failure):
+    err = failure.value
+    if isinstance(err, meteogram.ParseError):
+        return str(err)
+    if isinstance(err, HTTPError):
+        return f"meteo.pl odpowiada błędem {err.code}"
+    if isinstance(err, (URLError, SocketTimeout, ConnectionError)):
+        return "Brak połączenia z meteo.pl"
+    print("[UMMeteo] fetch failed:", failure.getTraceback())
+    return f"Błąd: {err}"
+
 
 class Meteo(Screen):
-    from enigma import getDesktop
-    screenWidth = getDesktop(0).size().width()
-    if screenWidth and screenWidth == 1920:
-        # FHD skin
-        skin="""
-        <screen name="UMMeteo" position="center,5" size="1365,1066" flags="wfNoBorder" backgroundColor="#00FFFFFF" >
-            <widget name="info" position="0,0" size="1620,31" font="Regular;27" halign="center"/>
-            <ePixmap position="0,31" size="420,990" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/leftfhd.png" transparent="1" alphatest="on" scale="1"/>
-            <widget name="myPic" position="420,31" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogramfhd.png" size="945,990" zPosition="1" alphatest="on" scale="1"/>
-            <eLabel text="Menu" position="0,1021" size="240,45" zPosition="2" font="Regular;33" halign="center" backgroundColor="blue" valign="center"/>
-            <eLabel text="Ulubione" position="240,1021" size="240,45" zPosition="2" font="Regular;33" halign="center" backgroundColor="green" valign="center"/>
-            <eLabel text="Info" position="480,1021" size="240,45" zPosition="2" font="Regular;33" halign="center" backgroundColor="yellow" valign="center"/>
-            <eLabel name="about" text="www.meteo.pl %s by areq 2019" position="720,1021" size="640,45" zPosition="2" font="Regular;33" halign="right" valign="center"/>
-            <eLabel name="pad" text=" " position="1360,1021" size="5,45" zPosition="2" font="Regular;33" halign="center" valign="center"/>
-        </screen>""" % version
-    else:
-        # HD skin
-        skin="""
-        <screen name="UMMeteo" position="center,5" size="910,710" flags="wfNoBorder" backgroundColor="#00FFFFFF" >
-            <widget name="info" position="0,0" size="910,20" font="Regular;18" halign="center"/>
-            <ePixmap position="0,20" size="280,660" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/left.png" transparent="1" alphatest="on"/>
-            <widget name="myPic" position="280,20" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL/meteogram.png" size="630,660" zPosition="1" alphatest="on" scale="1"/>
-            <eLabel text="Menu" position="0,680" size="160,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="blue" valign="center"/>
-            <eLabel text="Ulubione" position="160,680" size="160,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="green" valign="center"/>
-            <eLabel text="Info" position="320,680" size="160,30" zPosition="2" font="Regular;22" halign="center" backgroundColor="yellow" valign="center"/>
-            <eLabel name="about" text="www.meteo.pl %s by areq 2019" position="480,680" size="426,30" zPosition="2" font="Regular;22" halign="right" valign="center"/>
-            <eLabel name="pad" text=" " position="906,680" size="4,30" zPosition="2" font="Regular;22" halign="center" valign="center"/>
-        </screen>""" % version
-
     def __init__(self, session):
+        self.skin = build_skin()
         Screen.__init__(self, session)
-        self["info"] = Label('Ładuję...')
-        self["myPic"] = Pixmap()
-        try:
-            os.unlink('/tmp/meteo.png')
-        except:
-            pass
-        try:
-            os.unlink('/tmp/meteofhd.png')
-        except:
-            pass
-        self["myActionMap"] = ActionMap(["MeteoActions"],
-        {
-            "ok": self.cancel,
-            "cancel": self.cancel,
-            "menu": self.menu,
-            "blue": self.menu,
-            "green": self.next,
+        self.setTitle("UM Meteo.pl")
+        self["title"] = Label("")
+        self["status"] = Label("")
+        self["chart"] = Pixmap()
+        self["actions"] = ActionMap(["MeteoActions"], {
+            "ok": self.choose,
+            "list": self.choose,
+            "cancel": self.close,
             "left": self.prev,
             "right": self.next,
-            "start": self.start,
-            "info": self.ShowOpis,
-            "yellow": self.ShowOpis,
-            "list": self.choose,
+            "green": self.next,
+            "red": self.refresh,
+            "yellow": self.help,
+            "info": self.help,
+            "blue": self.configure,
+            "menu": self.configure,
+            "start": lambda: self.show_location(0),
+            **{str(n): (lambda n=n: self.show_location(n - 1)) for n in range(1, 10)},
         }, -1)
 
-        getURL('http://e2.areq.eu.org/ummeteo/version', self.updateCB, self.errorUpdate)
+        self.favourites = []
+        self.index = 0
+        self.seq = 0            # newer request invalidates older callbacks
+        self.cache = {}         # id -> (time, Forecast, png path, (w, h))
+        self.closed = False
+        self.decoding = False
+        self.queued = None
+        self.picload = ePicLoad()
+        self.picload.PictureData.get().append(self.decoded)
+        os.makedirs(TMP_DIR, exist_ok=True)
 
-        self.onLayoutFinish.append(self.layoutFinished)
+        self.onLayoutFinish.append(self.first_load)
+        self.onClose.append(self.cleanup)
 
-    def layoutFinished(self):
-        from enigma import getDesktop
-        screenWidth = getDesktop(0).size().width()
-        if screenWidth and screenWidth == 1920:
-            self.fhdskin = True
-        else:
-            self.fhdskin = False
-        self.load_ini()
+    # --- lifecycle ---------------------------------------------------------
+    def first_load(self):
+        self.reload(first_run=True)
 
-    def load_ini(self):
-        self.miejscaFull = []
-        self.miejsca = []
-        self.active = 0
+    def cleanup(self):
+        self.closed = True
+        if self.favourites:
+            settings.remember_last(self.favourites[self.index].id)
         try:
-            for l in open(meteo_ini):
-                if len(l) > 4:
-                    self.miejscaFull.append(l.rstrip('\n'))
-                    self.miejsca.append(l.split()[0])
-        except:
+            self.picload.PictureData.get().remove(self.decoded)
+        except ValueError:
             pass
-        if len(self.miejsca) < 1:
-            self.miejscaFull = ["2119 Dobre, pow.radziejowski"]
-            self.miejsca = [2119]
-        self.start_meteo(self.miejsca[0])
+        for _t, _f, path, _size in self.cache.values():
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
 
-    def prev(self):
-        self.active -= 1
-        if self.active < 0:
-            self.active = len(self.miejsca)-1
-        #if self.fhdskin:
-        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
-        #else:
-        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
-        self.start_meteo(self.miejsca[self.active])
+    def reload(self, first_run=False):
+        self.favourites = settings.favourites()
+        if self.favourites:
+            if first_run and settings.cfg.start.value == "last":
+                ids = [loc.id for loc in self.favourites]
+                self.index = ids.index(settings.cfg.last.value) if settings.cfg.last.value in ids else 0
+            self.show_location(min(self.index, len(self.favourites) - 1))
+            return
+        self.seq += 1
+        self["title"].setText("Brak ulubionych miejscowości")
+        self.set_status("MENU lub NIEBIESKI - dodaj miejscowość")
+        self.show_picture(storage.PLUGIN_DIR + "/loading.png")
+        if first_run:
+            self.edit_favourites()
+
+    # --- navigation --------------------------------------------------------
+    def show_location(self, index, force=False):
+        if not 0 <= index < len(self.favourites):
+            return
+        self.index = index
+        loc = self.favourites[index]
+        self.seq += 1
+        seq = self.seq
+        self["title"].setText(loc.name)
+
+        cached = self.cache.get(loc.id)
+        if cached and not force and time.time() - cached[0] < int(settings.cfg.cache.value) * 60:
+            self.ready(seq, loc.id, cached)
+            return
+        self.set_status(f"{self.position()}   Ładuję...")
+        self.show_picture(storage.PLUGIN_DIR + "/loading.png")
+        d = deferToThread(self.download, loc.id)
+        d.addCallbacks(lambda result: self.ready(seq, loc.id, result), lambda failure: self.failed(seq, failure))
 
     def next(self):
-        self.active += 1
-        if self.active >= len(self.miejsca):
-            self.active = 0
-        #if self.fhdskin:
-        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
-        #else:
-        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
-        self.start_meteo(self.miejsca[self.active])
+        if self.favourites:
+            self.show_location((self.index + 1) % len(self.favourites))
 
-    def start(self):
-        self.active = 0
-        #if self.fhdskin:
-        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
-        #else:
-        #    self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
-        self.start_meteo(self.miejsca[self.active])
+    def prev(self):
+        if self.favourites:
+            self.show_location((self.index - 1) % len(self.favourites))
 
-    def updateCB(self, html):
-        try:
-            html = html.decode('utf-8')
-            v = html.split('\n')[0]
-            if v > version:
-                self.session.openWithCallback(self.upgradeCB, MessageBox, "Dostępna jest nowa wersja pluginu UM Meteo\n %s \n Instalować ?" % v, MessageBox.TYPE_YESNO)
-        except:
-            pass
+    def refresh(self):
+        self.show_location(self.index, force=True)
 
-    def errorUpdate(self, html):
-        print("[UMMeteo] - upgrade problem:", html)
+    def position(self):
+        return f"{self.index + 1}/{len(self.favourites)}"
 
-    def upgradeCB(self, result = None):
-        print("[UMMeteo] - upgrade:", result)
-        if result:
-            print("\n[UMMeteo] - upgrade yes\n")
-            #downloadPage('http://e2.areq.eu.org/ummeteo/update.py',PluginPath + '/update.py').addCallback(self.goupCB).addErrback(self.errorUpdate)
-        else:
-            print("[UMMeteo] upgrade cancel\n")
+    # --- worker thread -----------------------------------------------------
+    @staticmethod
+    def download(location_id):
+        forecast, png, size = meteogram.fetch(location_id)
+        path = f"{TMP_DIR}/{location_id}.png"
+        with open(path, "wb") as f:
+            f.write(png)
+        return time.time(), forecast, path, size
 
-    def goupCB(self, html):
-        print("[UMMeteo] - upgrade.py done:", html)
-        try:
-            q = 1
-            #import update
-            #reload(update)
-            #self.session.open(update.DoUpdate) 
-        except:
-            print("[UMMeteo] - upgrade.py - exception")
-            import traceback
-            traceback.print_exc() 
+    # --- reactor thread ----------------------------------------------------
+    def ready(self, seq, loc_id, result):
+        if self.closed:
+            return
+        self.cache[loc_id] = result
+        if seq != self.seq:
+            return
+        _t, forecast, path, size = result
+        self.set_status(f"{self.position()}   prognoza z {forecast.run}")
+        self.show_picture(path, size)
 
-    def start_meteo(self, id ):
-        print("[UMMeteo] - miasto:", id)
-        if self.fhdskin:
-            self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
-        else:
-            self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
-        self["info"].setText("Ładuję")
-        url = "https://www.meteo.pl/um/php/meteorogram_id_um.php?ntype=0u&id=%s" % id
-        getURL(url, self.infoCB, self.error, asText = False)
+    def failed(self, seq, failure):
+        if self.closed or seq != self.seq:
+            return
+        self.set_status(f"{self.position()}   {describe_error(failure)}", error=True)
+        self.show_picture(storage.PLUGIN_DIR + "/error.png")
 
-    def error(self, error = None):
-        if error is not None:
-            self["info"].setText(str(error.getErrorMessage())) 
+    def set_status(self, text, error=False):
+        self["status"].setText(text)
+        if self["status"].instance:
+            self["status"].instance.setForegroundColor(gRGB(0xc00000 if error else 0x505050))
 
-    def infoCB(self, html):
-        html = html.decode('iso-8859-2')
-        upng = "https://www.meteo.pl/um/metco/mgram_pict.php?ntype=0u&ffdate=%s&row=%s&col=%s&lang=pl"
-        #var fcstdate = "2013080306";var ntype ="0u";var lang ="pl";var id="2119";var act_x = 208;var act_y = 393;
-        r = r'.*fcstdate = "(202\d{7})";.*var id="(\d+)";var act_x = (\d+);var act_y = (\d+);.*div id=.model_napis[^\n]+\n[^\n]+\n(.*)\<\/font...div.*'
-        m = re.search(r, html, re.M|re.DOTALL)
-        if m:
-            d, id, x, y, o = m.groups()
-            url = upng % (d, y, x)
-            o = "%i/%i  #%s Start prognozy %s-%s-%s %s:00     %s" % (self.active + 1, len(self.miejsca), id, d[0:4], d[4:6], d[6:8], d[8:10], o.replace('&nbsp;',' ')) 
-            print("Meteo url png:", url)
-            downloadURL(url,'/tmp/meteo.png', self.pngCB, self.error)
-        else:
-            o ='Problem z pobraniem informacji o meteogramie ;-('
-        self["info"].setText(o)
+    # --- picture -----------------------------------------------------------
+    def show_picture(self, path, size=None):
+        """Decode in the background, scaled to the chart width.
 
-    def pngCB(self, raw):
-        if self.fhdskin:
-            if fileExists("/usr/bin/convert"):
-                # make convert - high quality scale
-                # v1: no spinner
-                convertcmd = "convert /tmp/meteo.png -filter quadratic -resize 945x990\\! -quality 11 /tmp/meteofhd.png"
-                # convertcmd = "convert /tmp/meteo.png -filter quadratic -resize 945x990\\! /tmp/meteofhd.bmp"
-                Console().ePopen(convertcmd,self.getConvertFinished)
-                # v2: spinner...
-                #os.system("convert /tmp/meteo.png -filter quadratic -resize 945x990\\! -quality 11 /tmp/meteofhd.png")
-                #self["myPic"].instance.setPixmapFromFile("/tmp/meteofhd.png")
-            else:
-                # load downloaded file - low quality scale
-                self["myPic"].instance.setPixmapFromFile("/tmp/meteo.png")
-        else:
-            self["myPic"].instance.setPixmapFromFile("/tmp/meteo.png")
+        Anything taller than the chart (the banner above it) is cut off by
+        bottom alignment."""
+        if self.decoding:
+            self.queued = (path, size)
+            return
+        widget = self["chart"].instance
+        w, h = widget.size().width(), widget.size().height()
+        if size:
+            h = int(round(size[1] * w / float(size[0])))
+        self.decoding = True
+        self.picload.setPara((w, h, 0, 0, False, 1, "#00ffffff"))
+        if self.picload.startDecode(path):
+            self.decoding = False
 
+    def decoded(self, picinfo=None):
+        self.decoding = False
+        if self.closed:
+            return
+        if self.queued:
+            path, size = self.queued
+            self.queued = None
+            self.show_picture(path, size)
+            return
+        ptr = self.picload.getData()
+        if ptr is not None:
+            widget = self["chart"].instance
+            set_flags = getattr(widget, "setPixmapScale", None) or getattr(widget, "setPixmapScaleFlags", None)
+            if set_flags:
+                set_flags(BT_HALIGN_CENTER | BT_VALIGN_BOTTOM)
+            widget.setPixmap(ptr)
 
-    def getConvertFinished(self, result, retval, extra_args):
-        self["myPic"].instance.setPixmapFromFile("/tmp/meteofhd.png")
-        # self["myPic"].instance.setPixmapFromFile("/tmp/meteofhd.bmp")
-
-    def cancel(self):
-        # print "[UMMeteo] - cancel\n"
-        self.close(None)
-
-    def menu(self):
-        try:
-            from Plugins.Extensions.UMMeteoPL.configure import Configure
-            self.session.openWithCallback(self.poConfigureCB, Configure)
-            self.load_ini()
-        except:
-            import traceback
-            traceback.print_exc() 
-
-    def poConfigureCB(self):
-        self.load_ini()
-
-    def ShowOpis(self):
-        opisFile = PluginPath + '/opis.txt'
-        if os.path.isfile(opisFile):
-            f = open(opisFile, 'r')
-            opisText = f.read()
-            f.close()
-            Message = opisText
-        else:
-            Message = '\nBrak informacji'
-        self.session.open(TextBox, Message, "UMMeteoPL - informacje")
-
+    # --- dialogs -----------------------------------------------------------
     def choose(self):
-        askList = []
-        i = 0
-        for l in self.miejscaFull:
-            askList.append([l, i])
-            i += 1
-        dei = self.session.openWithCallback(self.favCB, ChoiceBox, title="Wybierz lokalizację", list=askList)
-        dei.setTitle("Lista ulubionych")
+        if not self.favourites:
+            return self.edit_favourites()
+        choices = [(loc.name, n) for n, loc in enumerate(self.favourites)]
+        self.session.openWithCallback(self.chosen, ChoiceBox, title="Wybierz miejscowość",
+                                      list=choices, selection=self.index, windowTitle="Ulubione")
 
-    def favCB(self, answer):
-        answer = answer and answer[1]
-        if answer:
-            self.active = answer
-            if self.fhdskin:
-                self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogramfhd.png")
-            else:
-                self["myPic"].instance.setPixmapFromFile(PluginPath + "/meteogram.png")
-            self.start_meteo(self.miejsca[self.active])
+    def chosen(self, answer):
+        if answer is not None:
+            self.show_location(answer[1])
+
+    def configure(self):
+        from .setup import Setup
+        self.session.openWithCallback(self.configured, Setup)
+
+    def edit_favourites(self):
+        from .configure import Configure
+        self.session.openWithCallback(self.configured, Configure)
+
+    def configured(self, changed=False):
+        if changed:
+            self.reload()
+
+    def help(self):
+        try:
+            with open(storage.PLUGIN_DIR + "/opis.txt", encoding="utf-8") as f:
+                text = f.read()
+        except OSError:
+            text = "Brak opisu."
+        self.session.open(TextBox, text, f"UM Meteo.pl {VERSION} - pomoc")

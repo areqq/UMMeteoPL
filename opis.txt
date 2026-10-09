@@ -1,25 +1,58 @@
-Opis:
+UM Meteo.pl - meteogram modelu UM (ICM, Uniwersytet Warszawski)
 
-Wtyczka umożliwia pobranie obrazu prognozy pogody modelu UM z serwisu www.meteo.pl dla wybranej miejscowości. 
+EKRAN METEOGRAMU
+  LEWO / PRAWO, CH+/CH-, ZIELONY  poprzednia / następna miejscowość
+  1-9                             skok do miejscowości z listy
+  0                               pierwsza miejscowość
+  OK lub LIST                     lista ulubionych
+  CZERWONY                        odśwież (pomija pamięć podręczną)
+  MENU lub NIEBIESKI              ustawienia - lista ulubionych
+  INFO lub ŻÓŁTY                  ta pomoc
+  EXIT                            wyjście
 
-Pod przyciskiem MENU/SETUP lub NIEBIESKIM znajduje się ekran konfiguracji. Można zdefiniować do 9 miejscowości.
+Pobrany meteogram jest pamiętany (domyślnie 30 minut), więc przełączanie
+między miejscowościami jest natychmiastowe. Godzina startu prognozy (UTC)
+jest w prawym górnym rogu.
 
-Po zainstalowaniu lista jest pusta, przejdź do konfiguracji i wciśnij klawisz OK by ustawić miejscowość. 
-Aby dodać kolejną: strzałka w dół i OK. Edycja: GÓRA/DÓŁ i OK. 
-Kasowanie wybranej pozycji: klawisz CZERWONY.
-Zapisanie zmian i powrót do okna z meteogramem: klawisz ZIELONY.
-Wyjście z edytora bez zapisywania: EXIT/BACK.
-Gwiazdka z lewej strony pokazuje, którą pozycję aktualnie edytujesz.
+USTAWIENIA (MENU)
+  Standardowy ekran ustawień enigmy:
+  - Ulubione miejscowości - OK otwiera edytor listy
+  - Po uruchomieniu pokaż miejscowość - pierwszą z listy / ostatnio oglądaną
+  - Pamiętaj pobrany meteogram przez - 10 / 30 / 60 minut
+  ZIELONY zapisuje, CZERWONY/EXIT anuluje.
 
-Na głównym ekranie wyświetla się domyślnie pierwsza miejscowość z listy, aby zobaczyć kolejna wciśnij klawisz ZIELONY lub użyj klawiszy LEWO/PRAWO.
+EDYTOR ULUBIONYCH
+  OK                  zmiana zaznaczonej miejscowości,
+                      na pozycji "+ Dodaj miejscowość" - dodanie nowej
+                      (wybór województwa albo wyszukiwanie po nazwie;
+                      wielkość liter i polskie znaki nie mają znaczenia)
+  CZERWONY            usuń
+  ŻÓŁTY / NIEBIESKI   przesuń w górę / w dół
+  ZIELONY             zapisz i wyjdź
+  EXIT                wyjście - przy niezapisanych zmianach pyta, co zrobić
 
-Wiadomość ta wyświetla się po naciśnięciu INFO lub ŻÓŁTEGO.
+Ustawienia są w /etc/enigma2/settings (config.plugins.UMMeteoPL), więc
+przetrwają aktualizację wtyczki i trafiają do kopii zapasowej ustawień.
+Lista z dawnego meteo.ini jest przenoszona automatycznie.
 
-
-Strona domowa: http://areq.eu.org/ummeteo/
+Źródło danych: www.meteo.pl, ICM UW.
 
 
 Historia zmian:
+
+2026.10.09
+- meteo.pl dokleja nad meteogramem baner (obrazek 630x780) - jest odcinany,
+  wykres nie jest już ściśnięty w pionie i znów pokrywa się z legendą
+- skalowanie bez ImageMagick (ePicLoad), skórka liczona dla HD/FHD/4K
+- pobieranie w tle bez blokowania i bez dotykania GUI z wątku roboczego;
+  szybkie przełączanie nie pokazuje już meteogramu innej miejscowości
+- czytelny komunikat błędu zamiast wiecznego "Ładuję"
+- ustawienia po enigmowemu: config.plugins.UMMeteoPL, ekran w stylu skórki
+  (Setup), opcje startu od ostatniej miejscowości i czasu pamiętania
+- nowy edytor ulubionych: zwykła lista, wyszukiwarka, kolejność, pytanie o zapis
+- automatyczne przeniesienie listy z meteo.ini
+- wybór pierwszej miejscowości z listy ulubionych znów działa
+- klawisze 1-9, CH+/CH-, odświeżanie; usunięto niedziałające "aktualizacje"
 
 2020.01.05
 - poprawka parsowania daty meteogramu, przwyrócono działanie w roku 2020

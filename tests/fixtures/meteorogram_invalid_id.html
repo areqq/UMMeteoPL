@@ -1,0 +1,48 @@
+<script language='JavaScript'>var UM_YYYY=2026;var UM_MM=10;var UM_DD=9;var UM_ST=12;var UM_LEN=120;var UM_SYYYY="2026";var UM_SMM="10";var UM_SDD="09";var UM_SST="12";var FLength="120";</script><HTML>
+<HEAD>
+
+<TITLE>Meteorogramy - meteorograms</TITLE>
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-2">
+<META NAME="description" CONTENT="Numeryczna prognoza pogody ICM">
+<META NAME="keywords" CONTENT="numeryczna prognoza pogody pogoda ICM meteo forecast meteorology weather poland">
+<link rel="stylesheet" type="text/css" href="/css/style_all.css">
+
+<style type="text/css" media="print">
+page {
+  size:landscape;
+}
+</style>
+
+</HEAD>
+
+<script language="JavaScript">
+
+function Redirect(i) {
+    if (i>0) {
+	ii=i-1;
+	document.getElementById('sek').innerHTML=""+ii+" sek.";
+	setTimeout('Redirect('+ii+')',1000);
+    } else {
+	window.location.reload();
+    };
+}
+
+
+
+</script>
+
+<body style='background-color: #fde399;' onLoad='Redirect(60)'>
+
+<BR><BR><BR><BR>
+<center>
+<font style="font-size:22px; color: #888888; font-weight: 700;">ŻĄDANY METEOROGRAM W PRZYGOTOWANIU</font>
+<br><br>
+<font style="font-size:14px; color: #333333; font-weight: 700;">automatyczne przeładowanie za <span id="sek"> </span></font>
+
+
+</center>
+</BODY>
+</HTML>
+
+
