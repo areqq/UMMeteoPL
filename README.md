@@ -58,18 +58,23 @@ przesuwa, ZIELONY zapisuje. EXIT z niezapisanymi zmianami pyta, co zrobić.
 
 ## Instalacja
 
-Wymaga obrazu enigma2 z Pythonem 3. Do dekodera trafia wszystko poza katalogami `docs`,
-`tests` i `tools`:
+Wymaga obrazu enigma2 z Pythonem 3. Na dekoderze (telnet/ssh jako root):
 
 ```sh
-git clone https://github.com/areqq/UMMeteoPL
-cd UMMeteoPL
-tar --exclude=.git --exclude=docs --exclude=tests --exclude=tools -cf - . |
-  ssh root@DEKODER 'D=/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL;
-                    mkdir -p $D && tar -xf - -C $D'
+wget -qO- https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh | sh
 ```
 
-Następnie zrestartuj GUI. Wtyczka pojawi się w menu wtyczek i w menu rozszerzeń.
+Jeśli `wget` z BusyBoxa zgłasza błąd TLS, użyj `curl` albo Pythona:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh | sh
+python3 -c "import urllib.request as u; print(u.urlopen('https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh').read().decode())" | sh
+```
+
+Skrypt pobiera aktualną wersję z GitHuba, a do pobrania używa `wget`, w razie
+niepowodzenia `curl`, a na końcu Pythona. Podmienia katalog wtyczki bez `docs`, `tests`
+i `tools`, a ustawień nie rusza. Tym samym poleceniem wtyczkę się aktualizuje. Na koniec
+trzeba zrestartować GUI. Wtyczka pojawi się w menu wtyczek i w menu rozszerzeń.
 
 Ustawienia są zapisywane w `/etc/enigma2/settings` (`config.plugins.UMMeteoPL.*`), więc
 przetrwają aktualizację wtyczki i trafiają do kopii zapasowej ustawień. Lista z
