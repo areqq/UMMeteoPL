@@ -7,12 +7,20 @@ EKRAN METEOGRAMU
   OK lub LIST                     lista ulubionych
   CZERWONY                        odśwież (pomija pamięć podręczną)
   MENU lub NIEBIESKI              ustawienia - lista ulubionych
-  INFO lub ŻÓŁTY                  ta pomoc
+  INFO                            szczegóły ostrzeżeń IMGW (gdy są), inaczej pomoc
+  ŻÓŁTY                           ta pomoc
   EXIT                            wyjście
 
 Pobrany meteogram jest pamiętany (domyślnie 30 minut), więc przełączanie
 między miejscowościami jest natychmiastowe. Godzina startu prognozy (UTC)
 jest w prawym górnym rogu.
+
+OSTRZEŻENIA IMGW
+Gdy dla powiatu wybranej miejscowości obowiązuje (albo jest zapowiedziane)
+ostrzeżenie meteorologiczne IMGW-PIB, w prawym dolnym rogu pojawia się
+pasek w kolorze stopnia ostrzeżenia (żółty / pomarańczowy / czerwony) z
+najpoważniejszym z nich; INFO pokazuje treść wszystkich. Dane: publiczne API
+danepubliczne.imgw.pl, sprawdzane co 10 minut.
 
 USTAWIENIA (MENU)
   Standardowy ekran ustawień enigmy:
@@ -53,6 +61,9 @@ Historia zmian:
 - automatyczne przeniesienie listy z meteo.ini
 - wybór pierwszej miejscowości z listy ulubionych znów działa
 - klawisze 1-9, CH+/CH-, odświeżanie; usunięto niedziałające "aktualizacje"
+- ostrzeżenia meteorologiczne IMGW-PIB dla powiatu wybranej miejscowości
+- katalog: powiat jeleniogórski -> karkonoski, Turek pow.turecki,
+  usunięty duplikat Jeleniej Góry
 
 2020.01.05
 - poprawka parsowania daty meteogramu, przwyrócono działanie w roku 2020

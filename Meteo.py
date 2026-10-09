@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+from datetime import datetime
 from socket import timeout as SocketTimeout
 from urllib.error import HTTPError, URLError
 
@@ -14,10 +15,13 @@ from Screens.ChoiceBox import ChoiceBox
 from Screens.Screen import Screen
 from Screens.TextBox import TextBox
 
-from . import meteogram, settings, storage
+from . import alerts, meteogram, settings, storage
 
 VERSION = "26.10.09"
 TMP_DIR = "/tmp/ummeteo"
+ALERTS_TTL = 10 * 60
+# IMGW warning levels: yellow, orange, red (background, text)
+ALERT_COLOURS = {1: (0xf2c200, 0x202020), 2: (0xff8c00, 0x202020), 3: (0xd02020, 0xffffff)}
 
 SCALE = getDesktop(0).size().height() / 720.0
 
@@ -53,7 +57,8 @@ def build_skin():
         <ePixmap position="0,{s(header)}" size="{s(legend_w)},{s(chart_h)}" pixmap="{storage.PLUGIN_DIR}/{legend}" scale="1" />
         <widget name="chart" position="{s(legend_w)},{s(header)}" size="{s(chart_w)},{s(chart_h)}" zPosition="1" />
         {keys_bar(footer_y, width, [(RED, "Odśwież", 110), (GREEN, "Następna", 115), (YELLOW, "Pomoc", 100), (BLUE, "Ustawienia", 125)], "#00ececec")}
-        <eLabel text="OK lista   &lt; &gt; zmiana   1-9 skok" position="{s(460)},{s(footer_y)}" size="{s(width - 470)},{s(30)}" font="Regular;{s(16)}" halign="right" valign="center" foregroundColor="#00606060" backgroundColor="#00ececec" zPosition="1" />
+        <widget name="hints" position="{s(460)},{s(footer_y)}" size="{s(width - 470)},{s(30)}" font="Regular;{s(16)}" halign="right" valign="center" foregroundColor="#00606060" backgroundColor="#00ececec" zPosition="1" />
+        <widget name="alert" position="{s(460)},{s(footer_y + 2)}" size="{s(width - 462)},{s(26)}" font="Regular;{s(15)}" halign="center" valign="center" noWrap="1" foregroundColor="#00202020" backgroundColor="#00f2c200" zPosition="2" />
     </screen>"""
 
 
@@ -77,6 +82,8 @@ class Meteo(Screen):
         self["title"] = Label("")
         self["status"] = Label("")
         self["chart"] = Pixmap()
+        self["hints"] = Label("OK lista   < > zmiana   1-9 skok")
+        self["alert"] = Label("")
         self["actions"] = ActionMap(["MeteoActions"], {
             "ok": self.choose,
             "list": self.choose,
@@ -86,7 +93,7 @@ class Meteo(Screen):
             "green": self.next,
             "red": self.refresh,
             "yellow": self.help,
-            "info": self.help,
+            "info": self.info,
             "blue": self.configure,
             "menu": self.configure,
             "start": lambda: self.show_location(0),
@@ -97,6 +104,9 @@ class Meteo(Screen):
         self.index = 0
         self.seq = 0            # newer request invalidates older callbacks
         self.cache = {}         # id -> (time, Forecast, png path, (w, h))
+        self.alerts = None      # IMGW warnings, None = not known
+        self.alerts_time = 0
+        self.counties = alerts.load_counties()
         self.closed = False
         self.decoding = False
         self.queued = None
@@ -109,6 +119,7 @@ class Meteo(Screen):
 
     # --- lifecycle ---------------------------------------------------------
     def first_load(self):
+        self["alert"].hide()
         self.reload(first_run=True)
 
     def cleanup(self):
@@ -149,6 +160,8 @@ class Meteo(Screen):
         self.seq += 1
         seq = self.seq
         self["title"].setText(loc.name)
+        self.update_alert()
+        self.load_alerts(force)
 
         cached = self.cache.get(loc.id)
         if cached and not force and time.time() - cached[0] < int(settings.cfg.cache.value) * 60:
@@ -198,6 +211,52 @@ class Meteo(Screen):
             return
         self.set_status(f"{self.position()}   {describe_error(failure)}", error=True)
         self.show_picture(storage.PLUGIN_DIR + "/error.png")
+
+    # --- IMGW warnings -----------------------------------------------------
+    def load_alerts(self, force=False):
+        if self.alerts_time and not force and time.time() - self.alerts_time < ALERTS_TTL:
+            return
+        self.alerts_time = time.time()
+        d = deferToThread(alerts.fetch)
+        d.addCallbacks(self.alerts_loaded, self.alerts_failed)
+
+    def alerts_loaded(self, result):
+        if not self.closed:
+            self.alerts = result
+            self.update_alert()
+
+    def alerts_failed(self, failure):
+        print("[UMMeteo] IMGW warnings:", failure.getErrorMessage())
+        self.alerts_time = 0    # try again on the next location change
+
+    def current_alerts(self):
+        if not self.alerts or not self.favourites:
+            return []
+        county = self.counties.get(self.favourites[self.index].id)
+        return alerts.for_county(self.alerts, county, datetime.now()) if county else []
+
+    def update_alert(self):
+        found = self.current_alerts()
+        if not found:
+            self["alert"].hide()
+            self["hints"].show()
+            return
+        bg, fg = ALERT_COLOURS.get(found[0].level, ALERT_COLOURS[3])
+        self["alert"].setText(f"{alerts.summary(found, datetime.now())}  [INFO]")
+        if self["alert"].instance:
+            self["alert"].instance.setBackgroundColor(gRGB(bg))
+            self["alert"].instance.setForegroundColor(gRGB(fg))
+        self["hints"].hide()
+        self["alert"].show()
+
+    def info(self):
+        found = self.current_alerts()
+        if not found:
+            return self.help()
+        now = datetime.now()
+        text = "\n\n----------\n\n".join(a.details(now) for a in found)
+        self.session.open(TextBox, text + "\n\nŹródło: IMGW-PIB, danepubliczne.imgw.pl",
+                          f"Ostrzeżenia IMGW - {self.favourites[self.index].name}")
 
     def set_status(self, text, error=False):
         self["status"].setText(text)

@@ -15,6 +15,7 @@ PKG = ROOT.name
 
 meteogram = __import__(f"{PKG}.meteogram", fromlist=["x"])
 storage = __import__(f"{PKG}.storage", fromlist=["x"])
+alerts = __import__(f"{PKG}.alerts", fromlist=["x"])
 
 
 class ParseTest(unittest.TestCase):
@@ -138,6 +139,55 @@ class SkinTest(unittest.TestCase):
             self.assertLessEqual(h, height)
             self.check(configure.build_skin())
             self.assertIn("leftfhd.png" if height >= 1080 else "left.png", Meteo.build_skin())
+
+
+class AlertsTest(unittest.TestCase):
+    """Real public API response captured 2026-10-08 (seven wind warnings)."""
+    NOW = alerts.datetime(2026, 10, 9, 8, 0)
+
+    def sample(self):
+        return alerts.parse((FIX / "warningsmeteo_2026-10-08.json").read_bytes())
+
+    def test_parse(self):
+        found = self.sample()
+        self.assertEqual(len(found), 7)
+        self.assertEqual({a.event for a in found}, {"Silny wiatr"})
+        self.assertEqual(sorted({a.level for a in found}), [1, 2])
+
+    def test_no_warnings(self):
+        self.assertEqual(alerts.parse((FIX / "warningsmeteo_none.json").read_bytes()), [])
+
+    def test_unknown_shape_is_an_error(self):
+        for raw in (b'{"message": "Limit"}', b"<html>", b"[{}]"):
+            with self.assertRaises(alerts.meteogram.ParseError):
+                alerts.parse(raw)
+
+    def test_gdansk(self):
+        counties = alerts.load_counties()
+        found = alerts.for_county(self.sample(), counties["1877"], self.NOW)
+        self.assertEqual([(a.level, a.period(self.NOW)) for a in found], [(1, "do 15:00")])
+        self.assertEqual(alerts.summary(found, self.NOW), "1. st. Silny wiatr do 15:00")
+        self.assertIn("Prawdopodobieństwo: 80%", found[0].details(self.NOW))
+
+    def test_expired_and_upcoming(self):
+        counties = alerts.load_counties()
+        # Jelenia Góra: 21:00-02:00 warning is over at 08:00
+        self.assertEqual(alerts.for_county(self.sample(), counties["981"], self.NOW), [])
+        early = alerts.datetime(2026, 10, 8, 20, 0)
+        found = alerts.for_county(self.sample(), counties["981"], early)
+        self.assertEqual(found[0].period(early), "od 21:00 do 09.10 02:00")
+        self.assertEqual(alerts.summary(found, early), "1. st. Silny wiatr od 21:00")
+
+    def test_most_severe_first(self):
+        a = self.sample()
+        county = "2210"
+        self.assertEqual([w.level for w in alerts.for_county(a, county, self.NOW)][0], 2)
+
+    def test_county_table_covers_catalogue(self):
+        counties = alerts.load_counties()
+        for label, woj in storage.VOIVODESHIPS:
+            for loc in storage.towns(woj):
+                self.assertRegex(counties.get(loc.id, ""), r"^\d{4}$", str(loc))
 
 
 class SettingsTest(unittest.TestCase):

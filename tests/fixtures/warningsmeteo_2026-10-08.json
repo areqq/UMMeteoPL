@@ -1,0 +1,142 @@
+[
+  {
+    "id": "Sk20261008095254197",
+    "nazwa_zdarzenia": "Silny wiatr",
+    "stopien": "1",
+    "prawdopodobienstwo": "80",
+    "obowiazuje_do": "2026-10-09 15:00:00",
+    "obowiazuje_od": "2026-10-09 03:00:00",
+    "opublikowano": "2026-10-08 11:52:00",
+    "tresc": "Prognozuje się wystąpienie silnego wiatru o średniej prędkości do 35 km/h, w porywach do 80 km/h, z zachodu.",
+    "komentarz": "Brak.",
+    "biuro": "Centralne Biuro Prognoz Meteorologicznych w Warszawie",
+    "teryt": [
+      "2204",
+      "2264",
+      "2262",
+      "2261"
+    ]
+  },
+  {
+    "id": "Sk20261008095252524",
+    "nazwa_zdarzenia": "Silny wiatr",
+    "stopien": "1",
+    "prawdopodobienstwo": "85",
+    "obowiazuje_do": "2026-10-09 10:00:00",
+    "obowiazuje_od": "2026-10-08 21:00:00",
+    "opublikowano": "2026-10-08 11:52:00",
+    "tresc": "Prognozuje się wystąpienie silnego wiatru o średniej prędkości do 45 km/h, w porywach do 85 km/h, z północnego zachodu i zachodu.",
+    "komentarz": "Brak.",
+    "biuro": "Centralne Biuro Prognoz Meteorologicznych w Warszawie",
+    "teryt": [
+      "3263",
+      "3205",
+      "3207",
+      "3208",
+      "3209",
+      "3261"
+    ]
+  },
+  {
+    "id": "Sk20261008095257349",
+    "nazwa_zdarzenia": "Silny wiatr",
+    "stopien": "1",
+    "prawdopodobienstwo": "75",
+    "obowiazuje_do": "2026-10-09 02:00:00",
+    "obowiazuje_od": "2026-10-08 21:00:00",
+    "opublikowano": "2026-10-08 11:52:00",
+    "tresc": "Prognozuje się wystąpienie silnego wiatru o średniej prędkości do 40 km/h, w porywach do około 75 km/h, z północnego zachodu i zachodu.",
+    "komentarz": "Brak.",
+    "biuro": "Centralne Biuro Prognoz Meteorologicznych w Warszawie",
+    "teryt": [
+      "0212",
+      "0207",
+      "0261",
+      "0206",
+      "0221"
+    ]
+  },
+  {
+    "id": "Sk20261008095255763",
+    "nazwa_zdarzenia": "Silny wiatr",
+    "stopien": "1",
+    "prawdopodobienstwo": "80",
+    "obowiazuje_do": "2026-10-09 18:00:00",
+    "obowiazuje_od": "2026-10-09 07:00:00",
+    "opublikowano": "2026-10-08 11:52:00",
+    "tresc": "Prognozuje się wystąpienie silnego wiatru o średniej prędkości do 40 km/h, w porywach do 80 km/h, z zachodu.",
+    "komentarz": "Brak.",
+    "biuro": "Centralne Biuro Prognoz Meteorologicznych w Warszawie",
+    "teryt": [
+      "2804",
+      "2802",
+      "2809",
+      "2861"
+    ]
+  },
+  {
+    "id": "Sk20261008095258959",
+    "nazwa_zdarzenia": "Silny wiatr",
+    "stopien": "2",
+    "prawdopodobienstwo": "90",
+    "obowiazuje_do": "2026-10-09 15:00:00",
+    "obowiazuje_od": "2026-10-08 22:00:00",
+    "opublikowano": "2026-10-08 11:52:00",
+    "tresc": "Prognozuje się wystąpienie silnego wiatru o średniej prędkości do 40 km/h, w porywach do 90 km/h, w strefie nadmorskiej o średniej prędkości do 55 km/h, w porywach do 105 km/h, z zachodu. W drugiej połowie nocy i nad ranem możliwe burze. ",
+    "komentarz": "Brak.",
+    "biuro": "Centralne Biuro Prognoz Meteorologicznych w Warszawie",
+    "teryt": [
+      "3213",
+      "2211",
+      "2263",
+      "2208",
+      "2215",
+      "2212"
+    ]
+  },
+  {
+    "id": "Sk20261008100728945",
+    "nazwa_zdarzenia": "Silny wiatr",
+    "stopien": "1",
+    "prawdopodobienstwo": "85",
+    "obowiazuje_do": "2026-10-08 21:00:00",
+    "obowiazuje_od": "2026-10-08 12:07:00",
+    "opublikowano": "2026-10-08 12:07:00",
+    "tresc": "Prognozuje się wystąpienie silnego wiatru o średniej prędkości do 40 km/h, w porywach do 70 km/h, lokalnie około 80 km/h, z kierunków południowych.",
+    "komentarz": "Brak.",
+    "biuro": "Centralne Biuro Prognoz Meteorologicznych w Warszawie",
+    "teryt": [
+      "1262",
+      "1821",
+      "1210",
+      "1801",
+      "1861",
+      "1805",
+      "1817",
+      "1205",
+      "1211",
+      "1215",
+      "1217",
+      "1807",
+      "2402",
+      "2403",
+      "2417",
+      "2461"
+    ]
+  },
+  {
+    "id": "Sk20261008095302285",
+    "nazwa_zdarzenia": "Silny wiatr",
+    "stopien": "2",
+    "prawdopodobienstwo": "80",
+    "obowiazuje_do": "2026-10-09 16:00:00",
+    "obowiazuje_od": "2026-10-09 06:00:00",
+    "opublikowano": "2026-10-08 11:53:00",
+    "tresc": "Prognozuje się wystąpienie silnego wiatru o średniej prędkości do 40 km/h, w porywach do 90 km/h, z południowego zachodu i zachodu.",
+    "komentarz": "Brak.",
+    "biuro": "Centralne Biuro Prognoz Meteorologicznych w Warszawie",
+    "teryt": [
+      "2210"
+    ]
+  }
+]
