@@ -24,11 +24,19 @@ download() {
     python3 -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "$1" "$2"
 }
 
-echo "UMMeteoPL: pobieram $URL"
-download "$URL" "$TMP/src.tar.gz" || fail "nie udało się pobrać archiwum"
+want=
 if [ -z "${UMMETEO_URL:-}" ]; then
     download "$URL.sha256" "$TMP/src.sha256" || fail "nie udało się pobrać sumy kontrolnej"
-    want=$(cut -d' ' -f1 <"$TMP/src.sha256")
+    want=$(cut -d' ' -f1 <"$TMP/src.sha256" | tr -cd '0-9a-f')
+    [ ${#want} -eq 64 ] || fail "nieprawidłowa suma kontrolna"
+    # Cloudflare przed <serwer wtyczki> trzyma .tar.gz do 4 h (max-age=14400), a .sha256 nie;
+    # ?sha=<suma> to osobny klucz cache dla każdego wydania (file:// nie zna zapytań)
+    case "$URL" in http*) URL="$URL?sha=$want" ;; esac
+fi
+
+echo "UMMeteoPL: pobieram $URL"
+download "$URL" "$TMP/src.tar.gz" || fail "nie udało się pobrać archiwum"
+if [ -n "$want" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
         got=$(sha256sum "$TMP/src.tar.gz" | cut -d' ' -f1)
     else
