@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UM Meteo.pl dla enigmy2</title>
+<meta name="description" content="Wtyczka enigma2: meteogram modelu UM z meteo.pl i ostrzeżenia IMGW-PIB dla ulubionych miejscowości.">
+<style>
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5b6475; --line: #dde1e8;
+  --accent: #1f6feb; --code-bg: #0f1520; --code-text: #e6edf3;
+  --red: #d64541; --green: #2e9e44; --yellow: #d9a400; --blue: #2f6fd6;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0f131a; --card: #171c25; --text: #e6e9ef; --muted: #9aa3b2; --line: #2a3140;
+          --accent: #6ea8ff; --code-bg: #0a0e14; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+       font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 6px; }
+h2 { font-size: 1.35rem; margin: 48px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+p, li { color: var(--text); }
+.lead { color: var(--muted); font-size: 1.1rem; margin: 0 0 24px; }
+a { color: var(--accent); }
+.install { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+           padding: 20px; margin: 0 0 8px; }
+.install h2 { margin-top: 0; border: 0; padding: 0; }
+.code { position: relative; margin: 8px 0 16px; }
+.code pre { margin: 0; padding-right: 84px; }
+pre { background: var(--code-bg); color: var(--code-text); border-radius: 8px;
+      padding: 14px 16px; overflow-x: auto; font: 14px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; margin: 8px 0 16px; }
+pre code { white-space: pre-wrap; word-break: break-all; }
+code { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: .92em; }
+:not(pre) > code { background: var(--line); padding: 1px 5px; border-radius: 4px; }
+button.copy { position: absolute; top: 8px; right: 8px; font: 12px system-ui, sans-serif; cursor: pointer;
+              background: #2a3346; color: #e6edf3; border: 1px solid #3a4560; border-radius: 6px; padding: 3px 8px; }
+button.copy:hover { background: #34405a; }
+figure { margin: 16px 0 24px; }
+figure img { display: block; max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); }
+figcaption { color: var(--muted); font-size: .9rem; margin-top: 6px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 16px; align-items: start; }
+.grid figure { margin: 0; }
+table { border-collapse: collapse; width: 100%; background: var(--card); border-radius: 8px; overflow: hidden; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: .9rem; }
+.key { display: inline-block; width: .8em; height: .8em; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.note { color: var(--muted); font-size: .92rem; }
+footer { margin-top: 56px; color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>UM Meteo.pl dla enigmy2</h1>
+<p class="lead">Meteogram modelu UM z <a href="https://www.meteo.pl">meteo.pl</a> (ICM, Uniwersytet Warszawski)
+dla listy ulubionych miejscowości, razem z ostrzeżeniami meteorologicznymi IMGW-PIB dla ich powiatu.</p>
+
+<section class="install" id="instalacja">
+  <h2>Instalacja</h2>
+  <p>Wymaga obrazu enigma2 z Pythonem 3 (np. OpenPLi, openATV). Na dekoderze, przez telnet albo ssh jako root:</p>
+  <pre><code>wget -qO- https://<serwer wtyczki>/install.sh | sh</code></pre>
+  <p>Jeśli <code>wget</code> z BusyBoxa zgłasza błąd TLS, użyj <code>curl</code> albo Pythona:</p>
+  <pre><code>curl -fsSL https://<serwer wtyczki>/install.sh | sh</code></pre>
+  <pre><code>python3 -c "import urllib.request as u; print(u.urlopen('https://<serwer wtyczki>/install.sh').read().decode())" | sh</code></pre>
+  <p>Na koniec zrestartuj GUI (Menu &gt; Czuwanie &gt; Restart GUI). Wtyczka „UM Meteo.pl” pojawi się
+  w menu wtyczek i w menu rozszerzeń. Później aktualizuje się sama.</p>
+  <p class="note">Skrypt pobiera <code>UMMeteoPL.tar.gz</code> z tego serwera, sprawdza jego sumę SHA-256
+  i podmienia katalog wtyczki. Ustawień nie rusza, a listę ulubionych ze starych wersji (<code>meteo.ini</code>) przenosi.</p>
+</section>
+
+<h2 id="meteogram">Meteogram</h2>
+<figure>
+  <img src="screenshots/meteogram.png" alt="Meteogram dla Warszawy" width="960" height="755">
+</figure>
+<ul>
+  <li>2358 miejscowości ze wszystkich województw, z wyszukiwarką, w której wielkość liter i polskie znaki nie mają znaczenia</li>
+  <li>przełączanie miejscowości strzałkami, CH+/CH−, klawiszami 1–9 albo z listy; pobrane meteogramy są pamiętane,
+      więc powrót jest natychmiastowy</li>
+  <li>skórka skalowana do rozdzielczości (HD, FullHD, 4K); ustawienia rysuje skórka dekodera, więc wyglądają jak systemowe</li>
+  <li>tylko Python 3 i enigma: bez <code>requests</code>, PIL czy ImageMagick</li>
+</ul>
+
+<h2 id="ostrzezenia">Ostrzeżenia IMGW</h2>
+<p>Gdy dla powiatu wybranej miejscowości obowiązuje albo jest zapowiedziane ostrzeżenie, pasek w stopce
+pokazuje najpoważniejsze z nich w kolorze stopnia (żółty, pomarańczowy, czerwony). INFO otwiera pełną treść wszystkich.</p>
+<figure>
+  <img src="screenshots/ostrzezenie.png" alt="Pasek ostrzeżenia w stopce" width="960" height="755" loading="lazy">
+</figure>
+<figure>
+  <img src="screenshots/ostrzezenie-info.png" alt="Szczegóły ostrzeżenia" width="960" height="540" loading="lazy">
+  <figcaption>Prawdziwe ostrzeżenie IMGW z 8.10.2026 (silny wiatr, Trójmiasto i powiat gdański),
+  z godzinami przesuniętymi na chwilę robienia zrzutu.</figcaption>
+</figure>
+
+<h2 id="ulubione">Ulubione i ustawienia</h2>
+<div class="grid">
+  <figure>
+    <img src="screenshots/ulubione-lista.png" alt="Lista ulubionych" width="440" height="421" loading="lazy">
+    <figcaption>Lista ulubionych (OK)</figcaption>
+  </figure>
+  <figure>
+    <img src="screenshots/ustawienia.png" alt="Ustawienia" width="960" height="540" loading="lazy">
+    <figcaption>Ustawienia (MENU)</figcaption>
+  </figure>
+  <figure>
+    <img src="screenshots/edytor.png" alt="Edytor ulubionych" width="960" height="762" loading="lazy">
+    <figcaption>Edytor ulubionych</figcaption>
+  </figure>
+  <figure>
+    <img src="screenshots/wyszukiwanie.png" alt="Wyniki wyszukiwania dla lodz" width="761" height="601" loading="lazy">
+    <figcaption>Wyszukiwanie: „lodz”</figcaption>
+  </figure>
+</div>
+<p>W ustawieniach wybiera się, czy wtyczka startuje od pierwszej czy od ostatnio oglądanej miejscowości,
+jak długo pamiętać pobrany meteogram i czy aktualizować się automatycznie. Ustawienia są zapisywane
+w <code>/etc/enigma2/settings</code> (<code>config.plugins.UMMeteoPL.*</code>), więc przetrwają
+aktualizację wtyczki i trafiają do kopii zapasowej ustawień.</p>
+
+<h2 id="pilot">Pilot</h2>
+<table>
+  <tr><th>Klawisz</th><th>Ekran meteogramu</th></tr>
+  <tr><td>◀ ▶, CH+ / CH−, <span class="key" style="background:var(--green)"></span>ZIELONY</td><td>poprzednia / następna miejscowość</td></tr>
+  <tr><td>1–9, 0</td><td>skok do pozycji z listy, 0 = pierwsza</td></tr>
+  <tr><td>OK, LIST</td><td>lista ulubionych</td></tr>
+  <tr><td><span class="key" style="background:var(--red)"></span>CZERWONY</td><td>odśwież (z pominięciem pamięci)</td></tr>
+  <tr><td>MENU, <span class="key" style="background:var(--blue)"></span>NIEBIESKI</td><td>ustawienia</td></tr>
+  <tr><td>INFO</td><td>szczegóły ostrzeżeń IMGW (bez ostrzeżeń: pomoc)</td></tr>
+  <tr><td><span class="key" style="background:var(--yellow)"></span>ŻÓŁTY</td><td>pomoc</td></tr>
+  <tr><td>EXIT</td><td>wyjście</td></tr>
+</table>
+<p>W edytorze ulubionych: OK zmienia albo dodaje miejscowość, CZERWONY usuwa, ŻÓŁTY / NIEBIESKI przesuwa,
+ZIELONY zapisuje. EXIT z niezapisanymi zmianami pyta, co zrobić.</p>
+
+<h2 id="aktualizacje">Aktualizacje</h2>
+<p>Przy każdym otwarciu wtyczka sprawdza w tle plik <a href="version"><code>version</code></a> na tym serwerze.
+Gdy jest tam inna wersja niż zainstalowana, pobiera <code>install.sh</code>, sprawdza jego sumę, instaluje
+nową wersję i pyta, czy zrestartować GUI. Wyłącza się to w ustawieniach („Aktualizuj automatycznie”).
+Ręcznie aktualizuje się tym samym poleceniem co przy <a href="#instalacja">instalacji</a>.</p>
+
+<h2 id="dane">Skąd są dane</h2>
+<ul>
+  <li><strong>Meteogram:</strong> meteo.pl, model UM. Serwer dokleja nad wykresem baner, który wtyczka odcina,
+      dzięki czemu wykres pokrywa się z legendą.</li>
+  <li><strong>Ostrzeżenia:</strong> publiczne API IMGW-PIB
+      <a href="https://danepubliczne.imgw.pl/api/data/warningsmeteo"><code>danepubliczne.imgw.pl/api/data/warningsmeteo</code></a>,
+      sprawdzane co 10 minut.</li>
+  <li><strong>Powiat miejscowości:</strong> tabela id meteo.pl → kod TERYT powiatu, zbudowana z państwowego
+      rejestru granic PRG (GUGiK).</li>
+</ul>
+
+<footer>
+  Kod źródłowy: <a href="https://github.com/areqq/UMMeteoPL">github.com/areqq/UMMeteoPL</a> ·
+  pełna instrukcja i historia zmian: <a href="https://github.com/areqq/UMMeteoPL/blob/master/opis.txt">opis.txt</a>
+  (na dekoderze pod klawiszem ŻÓŁTYM)
+</footer>
+</main>
+<script>
+document.querySelectorAll("pre").forEach(function (pre) {
+  if (!navigator.clipboard) return;
+  var b = document.createElement("button");
+  b.className = "copy"; b.type = "button"; b.textContent = "Kopiuj";
+  b.addEventListener("click", function () {
+    navigator.clipboard.writeText(pre.querySelector("code").textContent).then(function () {
+      b.textContent = "Skopiowano"; setTimeout(function () { b.textContent = "Kopiuj"; }, 1500);
+    });
+  });
+  var wrap = document.createElement("div");
+  wrap.className = "code";
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  wrap.appendChild(b);
+});
+</script>
+</body>
+</html>

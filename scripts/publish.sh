@@ -5,6 +5,7 @@
 #   UMMeteoPL.tar.gz          git archive HEAD bez docs/tests/tools/scripts
 #   UMMeteoPL.tar.gz.sha256   sprawdzana przez install.sh
 #   install.sh                jednolinijkówka i automatyczna aktualizacja (update.py)
+#   index.html, screenshots/  strona z dokumentacją (docs/index.html)
 #   version                   "<wersja>" + "install.sh <sha256>", wysyłany NA KOŃCU,
 #                             żeby dekoder nie zobaczył wersji przed plikami
 #
@@ -37,7 +38,7 @@ STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 printf 'machine %s login %s password %s\n' "${host%%:*}" "${creds%%:*}" "${creds#*:}" > "$STAGE/netrc"
 chmod 600 "$STAGE/netrc"
-put() { curl -fsS --netrc-file "$STAGE/netrc" -T "$STAGE/out/$1" "$base/$1"; echo "-> $1" >&2; }
+put() { curl -fsS --netrc-file "$STAGE/netrc" --ftp-create-dirs -T "$STAGE/out/$1" "$base/$1"; echo "-> $1" >&2; }
 
 mkdir "$STAGE/out"
 git archive --format=tar.gz --prefix=UMMeteoPL/ -o "$STAGE/out/UMMeteoPL.tar.gz" HEAD -- . \
@@ -46,7 +47,13 @@ git archive --format=tar.gz --prefix=UMMeteoPL/ -o "$STAGE/out/UMMeteoPL.tar.gz"
 git show HEAD:install.sh > "$STAGE/out/install.sh"
 printf '%s\ninstall.sh %s\n' "$VERSION" "$(sha256sum "$STAGE/out/install.sh" | cut -d' ' -f1)" > "$STAGE/out/version"
 
-for f in UMMeteoPL.tar.gz UMMeteoPL.tar.gz.sha256 install.sh version; do put "$f"; done
+mkdir "$STAGE/out/screenshots"
+git show HEAD:docs/index.html > "$STAGE/out/index.html"
+shots=$(git ls-tree --name-only HEAD docs/screenshots/ | sed 's#^docs/##')
+for f in $shots; do git show "HEAD:docs/$f" > "$STAGE/out/$f"; done
+
+# shellcheck disable=SC2086  # $shots: plain file names, no spaces
+for f in UMMeteoPL.tar.gz UMMeteoPL.tar.gz.sha256 install.sh index.html $shots version; do put "$f"; done
 
 got=$(curl -fsS --max-time 20 "$HTTP_BASE/version?$(date +%s)" | head -n1 || true)
 [ "$got" = "$VERSION" ] || { echo "!! $HTTP_BASE/version odpowiada '$got', oczekiwano '$VERSION'" >&2; exit 1; }

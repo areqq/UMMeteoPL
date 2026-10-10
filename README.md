@@ -4,6 +4,8 @@ Wtyczka enigma2 pokazująca **meteogram modelu UM** z [meteo.pl](https://www.met
 (ICM, Uniwersytet Warszawski) dla listy ulubionych miejscowości, razem z
 **ostrzeżeniami meteorologicznymi IMGW-PIB** dla ich powiatu.
 
+Strona wtyczki z instalacją: **https://<serwer wtyczki>/**
+
 ![Meteogram dla Warszawy](docs/screenshots/meteogram.png)
 
 - 2358 miejscowości ze wszystkich województw, z wyszukiwarką, w której wielkość liter
@@ -85,7 +87,7 @@ w ustawieniach („Aktualizuj automatycznie”). Wersja, której nie udało się
 nie jest ponawiana do restartu GUI.
 
 Wydanie: podbić `version.py`, zacommitować i uruchomić `scripts/publish.sh`. Skrypt
-wysyła `git archive HEAD` przez FTP. Hasło trzyma w `scripts/publish.local` albo
+wysyła `git archive HEAD` i stronę `docs/index.html` ze zrzutami przez FTP. Hasło trzyma w `scripts/publish.local` albo
 w `$UMMETEO_FTP`, nigdy w gicie. Plik `version` idzie na końcu, żeby dekoder nie
 zobaczył nowej wersji przed jej plikami.
 
