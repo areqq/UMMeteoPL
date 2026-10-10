@@ -53,9 +53,6 @@ wyłączyć w ustawieniach. Ręcznie:
 
 Historia zmian:
 
-2026.10.10-2
-- aktualizacja w tle co 8 godzin od startu GUI zamiast przy otwarciu wtyczki
-
 2026.10.10
 - automatyczna aktualizacja z <serwer wtyczki> (wyłączana w ustawieniach)
 - install.sh pobiera wtyczkę z <serwer wtyczki> i sprawdza jej sumę SHA-256
