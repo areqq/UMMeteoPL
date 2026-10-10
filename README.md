@@ -4,8 +4,6 @@ Wtyczka enigma2 pokazująca **meteogram modelu UM** z [meteo.pl](https://www.met
 (ICM, Uniwersytet Warszawski) dla listy ulubionych miejscowości, razem z
 **ostrzeżeniami meteorologicznymi IMGW-PIB** dla ich powiatu.
 
-Strona wtyczki z instalacją: **https://<serwer wtyczki>/**
-
 ![Meteogram dla Warszawy](docs/screenshots/meteogram.png)
 
 - 2358 miejscowości ze wszystkich województw, z wyszukiwarką, w której wielkość liter
@@ -63,14 +61,14 @@ przesuwa, ZIELONY zapisuje. EXIT z niezapisanymi zmianami pyta, co zrobić.
 Wymaga obrazu enigma2 z Pythonem 3. Na dekoderze (telnet/ssh jako root):
 
 ```sh
-wget -qO- https://<serwer wtyczki>/install.sh | sh
+wget -qO- https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh | sh
 ```
 
 Jeśli `wget` z BusyBoxa zgłasza błąd TLS, użyj `curl` albo Pythona:
 
 ```sh
-curl -fsSL https://<serwer wtyczki>/install.sh | sh
-python3 -c "import urllib.request as u; print(u.urlopen('https://<serwer wtyczki>/install.sh').read().decode())" | sh
+curl -fsSL https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh | sh
+python3 -c "import urllib.request as u; print(u.urlopen('https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh').read().decode())" | sh
 ```
 
 Skrypt pobiera opublikowaną wersję (`UMMeteoPL.tar.gz`), sprawdza jej sumę SHA-256
@@ -104,18 +102,18 @@ i openATV (Python 3.13, MetrixHD).
 | `alerts.py` | ostrzeżenia IMGW-PIB dla powiatu (bez enigmy) |
 | `storage.py` | katalog `woj/*`, wyszukiwarka, (de)serializacja ulubionych (bez enigmy) |
 | `settings.py` | `config.plugins.UMMeteoPL`, migracja `meteo.ini` |
-| `update.py`, `version.py` | aktualizacja w tle co 8 h z <serwer wtyczki> |
+| `update.py`, `version.py` | aktualizacja w tle co 8 h z serwera wtyczki |
 | `Meteo.py` | ekran meteogramu |
 | `setup.py` | ustawienia (`ConfigListScreen`, wygląd ze skórki `Setup`) |
 | `configure.py` | edytor listy ulubionych |
 | `keymap.xml` | kontekst `MeteoActions` |
 
-Wtyczka co 8 godzin sprawdza w tle `https://<serwer wtyczki>/version` i przy innej
-wersji uruchamia `wget -qO- https://<serwer wtyczki>/install.sh | sh` (wyłączane
-w ustawieniach). Wydanie: podbić `version.py`, zacommitować i uruchomić
+Wtyczka co 8 godzin sprawdza w tle plik `version` na serwerze wtyczki i przy innej
+wersji uruchamia z niego `install.sh` (wyłączane w ustawieniach). Adres serwera jest
+w kodzie zaszyfrowany (`BASE_URL_ENC` w `update.py`, `BASE_ENC` w `install.sh`). Wydanie: podbić `version.py`, zacommitować i uruchomić
 `scripts/publish.sh`. Skrypt wysyła przez FTP `git archive HEAD` i stronę
-`docs/index.html` ze zrzutami. Hasło trzyma w `scripts/publish.local` albo w
-`$UMMETEO_FTP`, nigdy w gicie.
+`docs/index.html` ze zrzutami. Cel FTP z hasłem i publiczny adres trzyma
+w `scripts/publish.local`, nigdy w gicie.
 
 Testy działają na PC bez enigmy. Uruchamia się je z katalogu nadrzędnego:
 

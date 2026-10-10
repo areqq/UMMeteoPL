@@ -61,10 +61,10 @@ dla listy ulubionych miejscowości, razem z ostrzeżeniami meteorologicznymi IMG
 <section class="install" id="instalacja">
   <h2>Instalacja</h2>
   <p>Wymaga obrazu enigma2 z Pythonem 3 (np. OpenPLi, openATV). Na dekoderze, przez telnet albo ssh jako root:</p>
-  <pre><code>wget -qO- https://<serwer wtyczki>/install.sh | sh</code></pre>
+  <pre><code>wget -qO- @BASE@/install.sh | sh</code></pre>
   <p>Jeśli <code>wget</code> z BusyBoxa zgłasza błąd TLS, użyj <code>curl</code> albo Pythona:</p>
-  <pre><code>curl -fsSL https://<serwer wtyczki>/install.sh | sh</code></pre>
-  <pre><code>python3 -c "import urllib.request as u; print(u.urlopen('https://<serwer wtyczki>/install.sh').read().decode())" | sh</code></pre>
+  <pre><code>curl -fsSL @BASE@/install.sh | sh</code></pre>
+  <pre><code>python3 -c "import urllib.request as u; print(u.urlopen('@BASE@/install.sh').read().decode())" | sh</code></pre>
   <p>Na koniec zrestartuj GUI (Menu &gt; Czuwanie &gt; Restart GUI). Wtyczka „UM Meteo.pl” pojawi się
   w menu wtyczek i w menu rozszerzeń. Później aktualizuje się sama.</p>
   <p class="note">Skrypt pobiera <code>UMMeteoPL.tar.gz</code> z tego serwera, sprawdza jego sumę SHA-256

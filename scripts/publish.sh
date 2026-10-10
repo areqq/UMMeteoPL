@@ -1,6 +1,5 @@
 #!/bin/sh
-# Publikuje wtyczkę na serwerze aktualizacji (konto FTP UMMeteoPL na
-# <host>:<port> = https://<serwer wtyczki>/, lista kont: lista kont FTP):
+# Publikuje wtyczkę na serwerze aktualizacji (FTP, katalog widoczny pod $UMMETEO_HTTP):
 #
 #   UMMeteoPL.tar.gz          git archive HEAD bez docs/tests/tools/scripts
 #   UMMeteoPL.tar.gz.sha256   sprawdzana przez install.sh
@@ -9,16 +8,24 @@
 #   version                   "<wersja>" + "install.sh <sha256>", wysyłany NA KOŃCU,
 #                             żeby dekoder nie zobaczył wersji przed plikami
 #
-# Cel FTP z hasłem POZA gitem: $UMMETEO_FTP albo scripts/publish.local (gitignored):
-#   UMMETEO_FTP="ftp://UMMeteoPL:<hasło>@<host>:<port>/"
+# Cel FTP z hasłem i adres publiczny POZA gitem (adresu nie ma być w gicie jawnie):
+# $UMMETEO_FTP / $UMMETEO_HTTP albo scripts/publish.local (gitignored):
+#   UMMETEO_FTP="ftp://<konto>:<hasło>@<host>:<port>/"
+#   UMMETEO_HTTP="https://<host>/<katalog>"   # = unscramble(BASE_URL_ENC) z update.py
 #
 # Użycie: scripts/publish.sh [--force]   (--force: wyślij ponownie tę samą wersję)
 set -eu
 cd "$(dirname "$0")/.."
-HTTP_BASE="https://<serwer wtyczki>"
 
 [ -z "${UMMETEO_FTP:-}" ] && [ -f scripts/publish.local ] && . scripts/publish.local
-[ -n "${UMMETEO_FTP:-}" ] || { echo "ustaw UMMETEO_FTP albo scripts/publish.local" >&2; exit 1; }
+if [ -z "${UMMETEO_FTP:-}" ] || [ -z "${UMMETEO_HTTP:-}" ]; then
+    echo "ustaw UMMETEO_FTP i UMMETEO_HTTP albo scripts/publish.local" >&2
+    exit 1
+fi
+HTTP_BASE="${UMMETEO_HTTP%/}"
+baked=$(python3 -c 'import base64, sys; k = b"UMMeteoPL"; print(bytes(c ^ k[i % len(k)] for i, c in enumerate(base64.b64decode(sys.argv[1]))).decode())' \
+    "$(git show HEAD:update.py | sed -n 's/^BASE_URL_ENC = "\(.*\)"/\1/p')")
+[ "$baked" = "$HTTP_BASE" ] || { echo "UMMETEO_HTTP różni się od adresu zaszyfrowanego w update.py" >&2; exit 1; }
 
 [ -z "$(git status --porcelain)" ] || { echo "niezacommitowane zmiany - publikowany jest HEAD" >&2; exit 1; }
 VERSION=$(git show HEAD:version.py | sed -n 's/^VERSION = "\(.*\)"/\1/p')
@@ -48,7 +55,7 @@ git show HEAD:install.sh > "$STAGE/out/install.sh"
 printf '%s\ninstall.sh %s\n' "$VERSION" "$(sha256sum "$STAGE/out/install.sh" | cut -d' ' -f1)" > "$STAGE/out/version"
 
 mkdir "$STAGE/out/screenshots"
-git show HEAD:docs/index.html > "$STAGE/out/index.html"
+git show HEAD:docs/index.html | sed "s#@BASE@#$HTTP_BASE#g" > "$STAGE/out/index.html"
 shots=$(git ls-tree --name-only HEAD docs/screenshots/ | sed 's#^docs/##')
 for f in $shots; do git show "HEAD:docs/$f" > "$STAGE/out/$f"; done
 

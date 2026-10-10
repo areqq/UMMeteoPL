@@ -1,21 +1,23 @@
 #!/bin/sh
 # UM Meteo.pl - instalacja / aktualizacja wtyczki na dekoderze z enigma2 (Python 3):
-#   wget -qO- https://<serwer wtyczki>/install.sh | sh
-# Wtyczka uruchamia tę samą jednolinijkówkę w tle co 8 h, gdy na serwerze jest
-# inna wersja (update.py, z UMMETEO_DEST = swoim katalogiem). UMMETEO_URL podaje inne archiwum,
-# np. https://github.com/areqq/UMMeteoPL/archive/refs/heads/master.tar.gz (bez sumy).
+#   wget -qO- https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh | sh
+# Wtyczka uruchamia ten skrypt z serwera wtyczki w tle co 8 h, gdy jest tam inna
+# wersja (update.py, z UMMETEO_DEST = swoim katalogiem). UMMETEO_URL podaje inne
+# archiwum, np. https://github.com/areqq/UMMeteoPL/archive/refs/heads/master.tar.gz (bez sumy).
 set -e
 
-BASE="${UMMETEO_BASE:-https://<serwer wtyczki>}"
+fail() { echo "UMMeteoPL: $*" >&2; exit 1; }
+command -v python3 >/dev/null 2>&1 || fail "wtyczka wymaga obrazu z Pythonem 3"
+
+# adres serwera wtyczki: XOR z "UMMeteoPL" + base64, jak BASE_URL_ENC w update.py
+BASE_ENC="PTk5FQdfQH82NC4jAFoKATViJSFiMDkoCiQpOh0B"
+BASE="${UMMETEO_BASE:-$(python3 -c 'import base64, sys; k = b"UMMeteoPL"; print(bytes(c ^ k[i % len(k)] for i, c in enumerate(base64.b64decode(sys.argv[1]))).decode())' "$BASE_ENC")}"
 URL="${UMMETEO_URL:-$BASE/UMMeteoPL.tar.gz}"
 DEST="${UMMETEO_DEST:-/usr/lib/enigma2/python/Plugins/Extensions/UMMeteoPL}"
 TMP=$(mktemp -d /tmp/ummeteo-install.XXXXXX)
 trap 'rm -rf "$TMP"' EXIT
 
-fail() { echo "UMMeteoPL: $*" >&2; exit 1; }
-
 [ -d "$(dirname "$DEST")" ] || fail "to nie wygląda na dekoder z enigma2"
-command -v python3 >/dev/null 2>&1 || fail "wtyczka wymaga obrazu z Pythonem 3"
 
 # BusyBox wget's own TLS fails against GitHub on some builds; python3 (used by the plugin anyway) is the fallback
 download() {
@@ -29,7 +31,7 @@ if [ -z "${UMMETEO_URL:-}" ]; then
     download "$URL.sha256" "$TMP/src.sha256" || fail "nie udało się pobrać sumy kontrolnej"
     want=$(cut -d' ' -f1 <"$TMP/src.sha256" | tr -cd '0-9a-f')
     [ ${#want} -eq 64 ] || fail "nieprawidłowa suma kontrolna"
-    # Cloudflare przed <serwer wtyczki> trzyma .tar.gz do 4 h (max-age=14400), a .sha256 nie;
+    # Cloudflare przed serwerem trzyma .tar.gz do 4 h (max-age=14400), a .sha256 nie;
     # ?sha=<suma> to osobny klucz cache dla każdego wydania (file:// nie zna zapytań)
     case "$URL" in http*) URL="$URL?sha=$want" ;; esac
 fi

@@ -7,6 +7,7 @@ FIRST_CHECK seconds later, then every INTERVAL. When the first line of
 runs in the background with its output in /dev/null; the new version works
 after the next GUI restart.
 """
+import base64
 import os
 import re
 import subprocess
@@ -14,7 +15,18 @@ import urllib.request
 
 from .version import VERSION
 
-BASE_URL = "https://<serwer wtyczki>"
+_KEY = b"UMMeteoPL"
+# the server address, XOR-ed with _KEY and base64-encoded so it is not in plain text in git;
+# install.sh carries the same string (tests pin both)
+BASE_URL_ENC = "PTk5FQdfQH82NC4jAFoKATViJSFiMDkoCiQpOh0B"
+
+
+def unscramble(enc):
+    raw = base64.b64decode(enc)
+    return bytes(c ^ _KEY[i % len(_KEY)] for i, c in enumerate(raw)).decode()
+
+
+BASE_URL = unscramble(BASE_URL_ENC)
 COMMAND = f"wget -qO- {BASE_URL}/install.sh | sh"
 PLUGIN_DIR = os.path.dirname(os.path.realpath(__file__))
 FIRST_CHECK = 120

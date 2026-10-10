@@ -248,12 +248,24 @@ class UpdateTest(unittest.TestCase):
             self.assertEqual((kw["stdout"], kw["stderr"]), (subprocess.DEVNULL, subprocess.DEVNULL))
             return types.SimpleNamespace(returncode=0)
         self.assertEqual(update.check(lambda url: b"99.1.1" + self.LINE.encode(), run), "99.1.1")
-        self.assertEqual(calls, [("wget -qO- https://<serwer wtyczki>/install.sh | sh", True,
-                                  update.PLUGIN_DIR)])
+        self.assertEqual(calls, [(f"wget -qO- {update.BASE_URL}/install.sh | sh", True, update.PLUGIN_DIR)])
 
         failed = types.SimpleNamespace(returncode=1)
         with self.assertRaisesRegex(update.UpdateError, "kod 1"):
             update.check(lambda url: b"99.1.1\n", lambda cmd, **kw: failed)
+
+    def test_server_address_is_never_in_plain_text(self):
+        import re
+        import subprocess
+        install = (ROOT / "install.sh").read_text(encoding="utf-8")
+        self.assertEqual(re.search(r'^BASE_ENC="(.*)"', install, re.M).group(1), update.BASE_URL_ENC)
+        self.assertTrue(update.BASE_URL.startswith("https://"))
+        host = update.BASE_URL.split("/")[2]
+        files = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+        for name in files or [p.name for p in ROOT.iterdir() if p.is_file()]:
+            data = (ROOT / name).read_bytes()
+            self.assertNotIn(host.encode(), data, name)
+            self.assertNotIn(host.split(".")[0].encode(), data.lower(), name)
 
     def test_install_sh_replaces_the_plugin(self):
         import hashlib
