@@ -240,17 +240,19 @@ class UpdateTest(unittest.TestCase):
         self.assertIsNone(update.check(lambda url: (update.installed_version() + self.LINE).encode(), run))
 
     def test_other_version_runs_the_one_liner(self):
+        import subprocess
         calls = []
 
         def run(cmd, **kw):
             calls.append((cmd, kw["shell"], kw["env"]["UMMETEO_DEST"]))
-            return types.SimpleNamespace(returncode=0, stdout=b"UMMeteoPL: zainstalowano")
+            self.assertEqual((kw["stdout"], kw["stderr"]), (subprocess.DEVNULL, subprocess.DEVNULL))
+            return types.SimpleNamespace(returncode=0)
         self.assertEqual(update.check(lambda url: b"99.1.1" + self.LINE.encode(), run), "99.1.1")
         self.assertEqual(calls, [("wget -qO- https://<serwer wtyczki>/install.sh | sh", True,
                                   update.PLUGIN_DIR)])
 
-        failed = types.SimpleNamespace(returncode=1, stdout=b"UMMeteoPL: suma kontrolna archiwum")
-        with self.assertRaisesRegex(update.UpdateError, "suma kontrolna"):
+        failed = types.SimpleNamespace(returncode=1)
+        with self.assertRaisesRegex(update.UpdateError, "kod 1"):
             update.check(lambda url: b"99.1.1\n", lambda cmd, **kw: failed)
 
     def test_install_sh_replaces_the_plugin(self):

@@ -4,7 +4,8 @@
 Started at GUI start (plugin.py, WHERE_SESSIONSTART): the first check comes
 FIRST_CHECK seconds later, then every INTERVAL. When the first line of
 <BASE_URL>/version differs from the version on disk, the console one-liner
-runs in the background; the new version works after the next GUI restart.
+runs in the background with its output in /dev/null; the new version works
+after the next GUI restart.
 """
 import os
 import re
@@ -58,14 +59,11 @@ def check(get=http_get, run=subprocess.run):
     local = installed_version()
     if remote == local:
         return None
-    print(f"[UMMeteo] update {local} -> {remote}: {COMMAND}")
     env = dict(os.environ, UMMETEO_DEST=PLUGIN_DIR)
-    result = run(COMMAND, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    result = run(COMMAND, shell=True, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                  timeout=INSTALL_TIMEOUT)
-    output = result.stdout.decode("utf-8", "replace").strip()
-    print(f"[UMMeteo] install.sh:\n{output}")
     if result.returncode != 0:
-        raise UpdateError(output.splitlines()[-1] if output else f"kod {result.returncode}")
+        raise UpdateError(f"install.sh: kod {result.returncode}")
     return remote
 
 
@@ -79,7 +77,7 @@ def start(enabled):
         global _call
         _call = reactor.callLater(INTERVAL, tick)
         if enabled():
-            deferToThread(check).addErrback(lambda f: print("[UMMeteo] update:", f.getErrorMessage()))
+            deferToThread(check).addErrback(lambda f: None)   # silent: no entries in the enigma log
 
     if _call is None or not _call.active():
         _call = reactor.callLater(FIRST_CHECK, tick)
