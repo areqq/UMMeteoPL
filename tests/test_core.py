@@ -219,31 +219,44 @@ class SettingsTest(unittest.TestCase):
 
 
 class UpdateTest(unittest.TestCase):
-    def setUp(self):
-        update.installed = update.failed = ""
+    LINE = f"\ninstall.sh {'0' * 64}\n"
 
     def test_version_file(self):
-        sha = "ab" * 32
-        self.assertEqual(update.parse_version(f"26.10.10\ninstall.sh {sha}\n".encode()), ("26.10.10", sha))
-        for bad in (b"", b"<html>404</html>\n", b"26.10.10\n", b"26.10.10\ninstall.sh xyz\n"):
+        self.assertEqual(update.parse_version(b"26.10.10" + self.LINE.encode()), "26.10.10")
+        self.assertEqual(update.parse_version(b"26.10.10\n"), "26.10.10")
+        for bad in (b"", b"<html>404</html>\n", b"26.10 .10\n"):
             with self.assertRaises(update.UpdateError):
                 update.parse_version(bad)
 
-    def test_only_a_different_version_is_offered(self):
-        line = f"\ninstall.sh {'0' * 64}\n"
-        self.assertIsNone(update.available(lambda url: (update.VERSION + line).encode()))
-        self.assertEqual(update.available(lambda url: ("99.1.1" + line).encode())[0], "99.1.1")
-        update.failed = "99.1.1"
-        self.assertIsNone(update.available(lambda url: ("99.1.1" + line).encode()))
+    def test_version_on_disk_wins_over_the_running_one(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(update.installed_version(d), update.VERSION)
+            Path(d, "version.py").write_text('VERSION = "99.1.1"\n')
+            self.assertEqual(update.installed_version(d), "99.1.1")
 
-    def test_wrong_install_sh_checksum_is_refused(self):
-        with self.assertRaises(update.UpdateError):
-            update.install("99.1.1", "0" * 64, get=lambda url: b"rm -rf /\n", run=None)
-        self.assertEqual(update.failed, "99.1.1")
+    def test_same_version_runs_nothing(self):
+        def run(*a, **k):
+            raise AssertionError("install.sh must not run")
+        self.assertIsNone(update.check(lambda url: (update.installed_version() + self.LINE).encode(), run))
 
-    def test_install_sh_replaces_the_plugin_from_the_server(self):
+    def test_other_version_runs_the_one_liner(self):
+        calls = []
+
+        def run(cmd, **kw):
+            calls.append((cmd, kw["shell"], kw["env"]["UMMETEO_DEST"]))
+            return types.SimpleNamespace(returncode=0, stdout=b"UMMeteoPL: zainstalowano")
+        self.assertEqual(update.check(lambda url: b"99.1.1" + self.LINE.encode(), run), "99.1.1")
+        self.assertEqual(calls, [("wget -qO- https://<serwer wtyczki>/install.sh | sh", True,
+                                  update.PLUGIN_DIR)])
+
+        failed = types.SimpleNamespace(returncode=1, stdout=b"UMMeteoPL: suma kontrolna archiwum")
+        with self.assertRaisesRegex(update.UpdateError, "suma kontrolna"):
+            update.check(lambda url: b"99.1.1\n", lambda cmd, **kw: failed)
+
+    def test_install_sh_replaces_the_plugin(self):
         import hashlib
         import io
+        import subprocess
         import tarfile
         with tempfile.TemporaryDirectory() as d:
             server, dest = os.path.join(d, "server"), os.path.join(d, "Extensions", "UMMeteoPL")
@@ -251,30 +264,24 @@ class UpdateTest(unittest.TestCase):
             os.makedirs(dest)
             Path(dest, "stale.py").write_text("old")
             Path(dest, "meteo.ini").write_text("462 Kraków\n")
-            with tarfile.open(os.path.join(server, "UMMeteoPL.tar.gz"), "w:gz") as tar:
+            tgz = os.path.join(server, "UMMeteoPL.tar.gz")
+            with tarfile.open(tgz, "w:gz") as tar:
                 for name, body in (("plugin.py", b""), ("Meteo.py", b""), ("version.py", b'VERSION = "99.1.1"\n')):
                     info = tarfile.TarInfo(f"UMMeteoPL/{name}")
                     info.size = len(body)
                     tar.addfile(info, io.BytesIO(body))
-            digest = hashlib.sha256(Path(server, "UMMeteoPL.tar.gz").read_bytes()).hexdigest()
-            Path(server, "UMMeteoPL.tar.gz.sha256").write_text(f"{digest}  UMMeteoPL.tar.gz\n")
-            script = (ROOT / "install.sh").read_bytes()
-            old = update.BASE_URL, update.PLUGIN_DIR
-            update.BASE_URL, update.PLUGIN_DIR = "file://" + server, dest
-            try:
-                update.install("99.1.1", hashlib.sha256(script).hexdigest(), get=lambda url: script)
-            finally:
-                update.BASE_URL, update.PLUGIN_DIR = old
-            self.assertEqual(update.installed, "99.1.1")
+            sha = Path(tgz + ".sha256")
+            sha.write_text(hashlib.sha256(Path(tgz).read_bytes()).hexdigest() + "  UMMeteoPL.tar.gz\n")
+            env = dict(os.environ, UMMETEO_BASE="file://" + server, UMMETEO_DEST=dest)
+            run = subprocess.run(["sh", str(ROOT / "install.sh")], env=env, capture_output=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
             self.assertEqual(sorted(os.listdir(dest)), ["Meteo.py", "meteo.ini", "plugin.py", "version.py"])
+            self.assertEqual(update.installed_version(dest), "99.1.1")
 
-            Path(server, "UMMeteoPL.tar.gz.sha256").write_text("0" * 64 + "  UMMeteoPL.tar.gz\n")
-            update.BASE_URL, update.PLUGIN_DIR = "file://" + server, dest
-            try:
-                with self.assertRaisesRegex(update.UpdateError, "suma kontrolna archiwum"):
-                    update.install("99.1.2", hashlib.sha256(script).hexdigest(), get=lambda url: script)
-            finally:
-                update.BASE_URL, update.PLUGIN_DIR = old
+            sha.write_text("0" * 64 + "  UMMeteoPL.tar.gz\n")
+            run = subprocess.run(["sh", str(ROOT / "install.sh")], env=env, capture_output=True)
+            self.assertNotEqual(run.returncode, 0)
+            self.assertIn("suma kontrolna archiwum", run.stderr.decode())
 
 
 class ScreenApiTest(unittest.TestCase):

@@ -1,98 +1,85 @@
 # -*- coding: utf-8 -*-
-"""Self-update from the publishing server (no enigma imports here).
+"""Background self-update from the publishing server (scripts/publish.sh).
 
-The server (scripts/publish.sh) holds:
-  version              line 1: version, line 2: "install.sh <sha256>"
-  install.sh           the same script as the console one-liner
-  UMMeteoPL.tar.gz     the plugin, verified by install.sh against .sha256
-A version different from the installed one is installed by running the
-server's install.sh, which replaces the plugin directory.
+Started at GUI start (plugin.py, WHERE_SESSIONSTART): the first check comes
+FIRST_CHECK seconds later, then every INTERVAL. When the first line of
+<BASE_URL>/version differs from the version on disk, the console one-liner
+runs in the background; the new version works after the next GUI restart.
 """
-import hashlib
 import os
+import re
 import subprocess
-import tempfile
 import urllib.request
 
 from .version import VERSION
 
 BASE_URL = "https://<serwer wtyczki>"
+COMMAND = f"wget -qO- {BASE_URL}/install.sh | sh"
 PLUGIN_DIR = os.path.dirname(os.path.realpath(__file__))
+FIRST_CHECK = 120
+INTERVAL = 8 * 3600
 TIMEOUT = 10
 INSTALL_TIMEOUT = 300
 
-installed = ""   # version installed during this session, waiting for a GUI restart
-failed = ""      # version whose installation failed during this session
+_call = None    # pending reactor.callLater
 
 
 class UpdateError(Exception):
     pass
 
 
-def http_get(url, limit=65536):
+def http_get(url, limit=4096):
     req = urllib.request.Request(url, headers={"User-Agent": f"UMMeteoPL/{VERSION} (enigma2 plugin)"})
     with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-        data = resp.read(limit + 1)
-    if len(data) > limit:
-        raise UpdateError(f"{url}: odpowiedź większa niż {limit} B")
-    return data
+        return resp.read(limit)
 
 
 def parse_version(raw):
-    """(version, install.sh sha256) from the server's version file."""
-    lines = raw.decode("utf-8", "replace").split("\n")
-    version = lines[0].strip()
+    """Version from the first line of the server's version file."""
+    version = raw.decode("utf-8", "replace").split("\n")[0].strip()
     if not version or len(version) > 40 or any(c.isspace() or c in "<>" for c in version):
         raise UpdateError(f"nieprawidłowy plik wersji: {version[:60]!r}")
-    sha = ""
-    for line in lines[1:]:
-        parts = line.split()
-        if len(parts) == 2 and parts[0] == "install.sh":
-            sha = parts[1].lower()
-    if len(sha) != 64 or any(c not in "0123456789abcdef" for c in sha):
-        raise UpdateError("w pliku wersji brak sumy install.sh")
-    return version, sha
-
-
-def available(get=http_get):
-    """(version, sha) on the server when it should be installed here, else None."""
-    version, sha = parse_version(get(BASE_URL + "/version"))
-    if version in (VERSION, installed, failed):
-        return None
-    return version, sha
-
-
-def install(version, sha, get=http_get, run=subprocess.run):
-    """Run the server's install.sh into PLUGIN_DIR; raises UpdateError on failure."""
-    global installed, failed
-    try:
-        script = get(BASE_URL + "/install.sh")
-        if hashlib.sha256(script).hexdigest() != sha:
-            raise UpdateError("suma kontrolna install.sh się nie zgadza")
-        fd, path = tempfile.mkstemp(prefix="ummeteo-install-", suffix=".sh")
-        try:
-            with os.fdopen(fd, "wb") as f:
-                f.write(script)
-            env = dict(os.environ, UMMETEO_BASE=BASE_URL, UMMETEO_DEST=PLUGIN_DIR)
-            result = run(["/bin/sh", path], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                         timeout=INSTALL_TIMEOUT)
-        finally:
-            os.unlink(path)
-        output = result.stdout.decode("utf-8", "replace").strip()
-        print(f"[UMMeteo] install.sh {version}:\n{output}")
-        if result.returncode != 0:
-            raise UpdateError(output.splitlines()[-1] if output else f"install.sh: kod {result.returncode}")
-    except subprocess.TimeoutExpired:
-        failed = version
-        raise UpdateError(f"install.sh nie skończył się w {INSTALL_TIMEOUT} s")
-    except Exception:
-        failed = version
-        raise
-    installed = version
     return version
 
 
-def check_and_install(get=http_get, run=subprocess.run):
-    """Worker-thread entry: installed version, or None when there is nothing new."""
-    found = available(get)
-    return install(*found, get=get, run=run) if found else None
+def installed_version(plugin_dir=None):
+    """Version on disk - after an update it is newer than the running VERSION."""
+    try:
+        with open(os.path.join(plugin_dir or PLUGIN_DIR, "version.py"), encoding="utf-8") as f:
+            m = re.search(r'^VERSION = "(.*)"', f.read(), re.M)
+        return m.group(1) if m else VERSION
+    except OSError:
+        return VERSION
+
+
+def check(get=http_get, run=subprocess.run):
+    """Worker thread: run COMMAND when the server has another version. Returns it, or None."""
+    remote = parse_version(get(BASE_URL + "/version"))
+    local = installed_version()
+    if remote == local:
+        return None
+    print(f"[UMMeteo] update {local} -> {remote}: {COMMAND}")
+    env = dict(os.environ, UMMETEO_DEST=PLUGIN_DIR)
+    result = run(COMMAND, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                 timeout=INSTALL_TIMEOUT)
+    output = result.stdout.decode("utf-8", "replace").strip()
+    print(f"[UMMeteo] install.sh:\n{output}")
+    if result.returncode != 0:
+        raise UpdateError(output.splitlines()[-1] if output else f"kod {result.returncode}")
+    return remote
+
+
+def start(enabled):
+    """Schedule the background checks; enabled() is read before each one."""
+    global _call
+    from twisted.internet import reactor
+    from twisted.internet.threads import deferToThread
+
+    def tick():
+        global _call
+        _call = reactor.callLater(INTERVAL, tick)
+        if enabled():
+            deferToThread(check).addErrback(lambda f: print("[UMMeteo] update:", f.getErrorMessage()))
+
+    if _call is None or not _call.active():
+        _call = reactor.callLater(FIRST_CHECK, tick)

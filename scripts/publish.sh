@@ -4,7 +4,7 @@
 #
 #   UMMeteoPL.tar.gz          git archive HEAD bez docs/tests/tools/scripts
 #   UMMeteoPL.tar.gz.sha256   sprawdzana przez install.sh
-#   install.sh                jednolinijkówka i automatyczna aktualizacja (update.py)
+#   install.sh                jednolinijkówka, uruchamiana też przez update.py co 8 h
 #   index.html, screenshots/  strona z dokumentacją (docs/index.html)
 #   version                   "<wersja>" + "install.sh <sha256>", wysyłany NA KOŃCU,
 #                             żeby dekoder nie zobaczył wersji przed plikami

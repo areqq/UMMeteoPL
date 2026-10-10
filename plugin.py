@@ -9,7 +9,13 @@ def main(session, **kwargs):
     session.open(Meteo)
 
 
+def sessionstart(reason, session=None, **kwargs):
+    from . import update
+    update.start(lambda: settings.cfg.autoupdate.value)
+
+
 def Plugins(**kwargs):
     return [PluginDescriptor(name="UM Meteo.pl", description="Meteogram modelu UM z meteo.pl (ICM UW)",
                              where=[PluginDescriptor.WHERE_PLUGINMENU, PluginDescriptor.WHERE_EXTENSIONSMENU],
-                             icon="meteo.png", fnc=main)]
+                             icon="meteo.png", fnc=main),
+            PluginDescriptor(where=PluginDescriptor.WHERE_SESSIONSTART, fnc=sessionstart)]

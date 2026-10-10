@@ -1,8 +1,8 @@
 #!/bin/sh
 # UM Meteo.pl - instalacja / aktualizacja wtyczki na dekoderze z enigma2 (Python 3):
 #   wget -qO- https://<serwer wtyczki>/install.sh | sh
-# Wtyczka uruchamia ten sam skrypt z serwera przy automatycznej aktualizacji
-# (update.py, z UMMETEO_DEST = swoim katalogiem). UMMETEO_URL podaje inne archiwum,
+# Wtyczka uruchamia tę samą jednolinijkówkę w tle co 8 h, gdy na serwerze jest
+# inna wersja (update.py, z UMMETEO_DEST = swoim katalogiem). UMMETEO_URL podaje inne archiwum,
 # np. https://github.com/areqq/UMMeteoPL/archive/refs/heads/master.tar.gz (bez sumy).
 set -e
 

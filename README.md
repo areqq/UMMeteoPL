@@ -78,19 +78,6 @@ i podmienia katalog wtyczki. Do pobrania używa `wget`, w razie niepowodzenia `c
 a na końcu Pythona. Ustawień nie rusza. Na koniec trzeba zrestartować GUI. Wtyczka
 pojawi się w menu wtyczek i w menu rozszerzeń.
 
-### Aktualizacje
-
-Przy każdym otwarciu wtyczka czyta w tle `https://<serwer wtyczki>/version`.
-Gdy jest tam inna wersja niż zainstalowana, pobiera z serwera `install.sh`, sprawdza
-jego sumę z pliku `version`, uruchamia go i pyta, czy zrestartować GUI. Wyłącza się to
-w ustawieniach („Aktualizuj automatycznie”). Wersja, której nie udało się zainstalować,
-nie jest ponawiana do restartu GUI.
-
-Wydanie: podbić `version.py`, zacommitować i uruchomić `scripts/publish.sh`. Skrypt
-wysyła `git archive HEAD` i stronę `docs/index.html` ze zrzutami przez FTP. Hasło trzyma w `scripts/publish.local` albo
-w `$UMMETEO_FTP`, nigdy w gicie. Plik `version` idzie na końcu, żeby dekoder nie
-zobaczył nowej wersji przed jej plikami.
-
 Ustawienia są zapisywane w `/etc/enigma2/settings` (`config.plugins.UMMeteoPL.*`), więc
 przetrwają aktualizację wtyczki i trafiają do kopii zapasowej ustawień. Lista z
 `meteo.ini` starszych wersji jest przenoszona automatycznie.
@@ -117,11 +104,18 @@ i openATV (Python 3.13, MetrixHD).
 | `alerts.py` | ostrzeżenia IMGW-PIB dla powiatu (bez enigmy) |
 | `storage.py` | katalog `woj/*`, wyszukiwarka, (de)serializacja ulubionych (bez enigmy) |
 | `settings.py` | `config.plugins.UMMeteoPL`, migracja `meteo.ini` |
-| `update.py`, `version.py` | automatyczna aktualizacja z <serwer wtyczki> (bez enigmy) |
+| `update.py`, `version.py` | aktualizacja w tle co 8 h z <serwer wtyczki> |
 | `Meteo.py` | ekran meteogramu |
 | `setup.py` | ustawienia (`ConfigListScreen`, wygląd ze skórki `Setup`) |
 | `configure.py` | edytor listy ulubionych |
 | `keymap.xml` | kontekst `MeteoActions` |
+
+Wtyczka co 8 godzin sprawdza w tle `https://<serwer wtyczki>/version` i przy innej
+wersji uruchamia `wget -qO- https://<serwer wtyczki>/install.sh | sh` (wyłączane
+w ustawieniach). Wydanie: podbić `version.py`, zacommitować i uruchomić
+`scripts/publish.sh`. Skrypt wysyła przez FTP `git archive HEAD` i stronę
+`docs/index.html` ze zrzutami. Hasło trzyma w `scripts/publish.local` albo w
+`$UMMETEO_FTP`, nigdy w gicie.
 
 Testy działają na PC bez enigmy. Uruchamia się je z katalogu nadrzędnego:
 

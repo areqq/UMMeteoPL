@@ -43,15 +43,18 @@ Ustawienia są w /etc/enigma2/settings (config.plugins.UMMeteoPL), więc
 przetrwają aktualizację wtyczki i trafiają do kopii zapasowej ustawień.
 Lista z dawnego meteo.ini jest przenoszona automatycznie.
 
-Aktualizacje: przy otwarciu wtyczka sprawdza na <serwer wtyczki>, czy jest inna
-wersja, i instaluje ją w tle. Nowa wersja działa po restarcie GUI - wtyczka
-pyta, czy zrestartować od razu. Można to wyłączyć w ustawieniach. Ręcznie:
+Aktualizacje: co 8 godzin wtyczka sprawdza w tle na <serwer wtyczki>, czy jest
+inna wersja, i instaluje ją. Nowa wersja działa po restarcie GUI. Można to
+wyłączyć w ustawieniach. Ręcznie:
   wget -qO- https://<serwer wtyczki>/install.sh | sh
 
 Źródło danych: www.meteo.pl, ICM UW.
 
 
 Historia zmian:
+
+2026.10.10-2
+- aktualizacja w tle co 8 godzin od startu GUI zamiast przy otwarciu wtyczki
 
 2026.10.10
 - automatyczna aktualizacja z <serwer wtyczki> (wyłączana w ustawieniach)
