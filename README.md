@@ -61,20 +61,33 @@ przesuwa, ZIELONY zapisuje. EXIT z niezapisanymi zmianami pyta, co zrobić.
 Wymaga obrazu enigma2 z Pythonem 3. Na dekoderze (telnet/ssh jako root):
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh | sh
+wget -qO- https://<serwer wtyczki>/install.sh | sh
 ```
 
 Jeśli `wget` z BusyBoxa zgłasza błąd TLS, użyj `curl` albo Pythona:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh | sh
-python3 -c "import urllib.request as u; print(u.urlopen('https://raw.githubusercontent.com/areqq/UMMeteoPL/master/install.sh').read().decode())" | sh
+curl -fsSL https://<serwer wtyczki>/install.sh | sh
+python3 -c "import urllib.request as u; print(u.urlopen('https://<serwer wtyczki>/install.sh').read().decode())" | sh
 ```
 
-Skrypt pobiera aktualną wersję z GitHuba, a do pobrania używa `wget`, w razie
-niepowodzenia `curl`, a na końcu Pythona. Podmienia katalog wtyczki bez `docs`, `tests`
-i `tools`, a ustawień nie rusza. Tym samym poleceniem wtyczkę się aktualizuje. Na koniec
-trzeba zrestartować GUI. Wtyczka pojawi się w menu wtyczek i w menu rozszerzeń.
+Skrypt pobiera opublikowaną wersję (`UMMeteoPL.tar.gz`), sprawdza jej sumę SHA-256
+i podmienia katalog wtyczki. Do pobrania używa `wget`, w razie niepowodzenia `curl`,
+a na końcu Pythona. Ustawień nie rusza. Na koniec trzeba zrestartować GUI. Wtyczka
+pojawi się w menu wtyczek i w menu rozszerzeń.
+
+### Aktualizacje
+
+Przy każdym otwarciu wtyczka czyta w tle `https://<serwer wtyczki>/version`.
+Gdy jest tam inna wersja niż zainstalowana, pobiera z serwera `install.sh`, sprawdza
+jego sumę z pliku `version`, uruchamia go i pyta, czy zrestartować GUI. Wyłącza się to
+w ustawieniach („Aktualizuj automatycznie”). Wersja, której nie udało się zainstalować,
+nie jest ponawiana do restartu GUI.
+
+Wydanie: podbić `version.py`, zacommitować i uruchomić `scripts/publish.sh`. Skrypt
+wysyła `git archive HEAD` przez FTP. Hasło trzyma w `scripts/publish.local` albo
+w `$UMMETEO_FTP`, nigdy w gicie. Plik `version` idzie na końcu, żeby dekoder nie
+zobaczył nowej wersji przed jej plikami.
 
 Ustawienia są zapisywane w `/etc/enigma2/settings` (`config.plugins.UMMeteoPL.*`), więc
 przetrwają aktualizację wtyczki i trafiają do kopii zapasowej ustawień. Lista z
@@ -102,6 +115,7 @@ i openATV (Python 3.13, MetrixHD).
 | `alerts.py` | ostrzeżenia IMGW-PIB dla powiatu (bez enigmy) |
 | `storage.py` | katalog `woj/*`, wyszukiwarka, (de)serializacja ulubionych (bez enigmy) |
 | `settings.py` | `config.plugins.UMMeteoPL`, migracja `meteo.ini` |
+| `update.py`, `version.py` | automatyczna aktualizacja z <serwer wtyczki> (bez enigmy) |
 | `Meteo.py` | ekran meteogramu |
 | `setup.py` | ustawienia (`ConfigListScreen`, wygląd ze skórki `Setup`) |
 | `configure.py` | edytor listy ulubionych |

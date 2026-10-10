@@ -1,3 +1,4 @@
 codedb.snapshot
 __pycache__/
 *.pyc
+scripts/publish.local

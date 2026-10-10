@@ -15,9 +15,8 @@ from Screens.ChoiceBox import ChoiceBox
 from Screens.Screen import Screen
 from Screens.TextBox import TextBox
 
-from . import alerts, meteogram, settings, storage
-
-VERSION = "26.10.09"
+from . import alerts, meteogram, settings, storage, update
+from .version import VERSION
 TMP_DIR = "/tmp/ummeteo"
 ALERTS_TTL = 10 * 60
 # IMGW warning levels: yellow, orange, red (background, text)
@@ -121,6 +120,8 @@ class Meteo(Screen):
     def first_load(self):
         self["alert"].hide()
         self.reload(first_run=True)
+        if settings.cfg.autoupdate.value:
+            deferToThread(update.check_and_install).addCallbacks(self.updated, self.update_failed)
 
     def cleanup(self):
         self.closed = True
@@ -257,6 +258,23 @@ class Meteo(Screen):
         text = "\n\n----------\n\n".join(a.details(now) for a in found)
         self.session.open(TextBox, text + "\n\nŹródło: IMGW-PIB, danepubliczne.imgw.pl",
                           f"Ostrzeżenia IMGW - {self.favourites[self.index].name}")
+
+    # --- self-update -------------------------------------------------------
+    def updated(self, version):
+        if version and not self.closed:
+            from Screens.MessageBox import MessageBox
+            self.session.openWithCallback(self.restart, MessageBox,
+                                          f"Zainstalowano UM Meteo.pl {version} (było {VERSION}).\n"
+                                          "Nowa wersja zadziała po restarcie GUI. Zrestartować teraz?",
+                                          MessageBox.TYPE_YESNO, default=False)
+
+    def update_failed(self, failure):
+        print("[UMMeteo] update:", failure.getErrorMessage())
+
+    def restart(self, answer):
+        if answer:
+            from Screens.Standby import TryQuitMainloop
+            self.session.open(TryQuitMainloop, 3)
 
     def set_status(self, text, error=False):
         self["status"].setText(text)

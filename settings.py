@@ -2,7 +2,7 @@
 """Plugin settings in enigma2's config tree (/etc/enigma2/settings)."""
 import os
 
-from Components.config import ConfigSelection, ConfigSubsection, ConfigText, config, configfile
+from Components.config import ConfigSelection, ConfigSubsection, ConfigText, ConfigYesNo, config, configfile
 
 from . import storage
 
@@ -12,6 +12,7 @@ cfg.favourites = ConfigText(default="", fixed_size=False)
 cfg.start = ConfigSelection(default="first", choices=[("first", "pierwszą z listy"), ("last", "ostatnio oglądaną")])
 cfg.last = ConfigText(default="", fixed_size=False)
 cfg.cache = ConfigSelection(default="30", choices=[("10", "10 minut"), ("30", "30 minut"), ("60", "1 godzinę")])
+cfg.autoupdate = ConfigYesNo(default=True)
 
 
 def favourites():

@@ -37,6 +37,9 @@ class Setup(ConfigListScreen, Screen):
             getConfigListEntry("Pamiętaj pobrany meteogram przez", cfg.cache,
                                "W tym czasie powrót do miejscowości nie pobiera meteogramu ponownie. "
                                "CZERWONY na ekranie meteogramu zawsze pobiera świeży."),
+            getConfigListEntry("Aktualizuj automatycznie", cfg.autoupdate,
+                               "Przy otwarciu wtyczka sprawdza na <serwer wtyczki>, czy jest nowa wersja, "
+                               "i instaluje ją. Zacznie działać po restarcie GUI."),
         ]
 
     def describe(self):

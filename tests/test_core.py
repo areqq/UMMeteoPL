@@ -16,6 +16,7 @@ PKG = ROOT.name
 meteogram = __import__(f"{PKG}.meteogram", fromlist=["x"])
 storage = __import__(f"{PKG}.storage", fromlist=["x"])
 alerts = __import__(f"{PKG}.alerts", fromlist=["x"])
+update = __import__(f"{PKG}.update", fromlist=["x"])
 
 
 class ParseTest(unittest.TestCase):
@@ -100,7 +101,7 @@ def stub_enigma(height):
         "twisted": {}, "twisted.internet": {}, "twisted.internet.threads": dict(deferToThread=None),
         "Components": {}, "Components.ActionMap": dict(ActionMap=object),
         "Components.config": dict(ConfigSubsection=types.SimpleNamespace, ConfigText=FakeElement,
-                                  ConfigSelection=FakeElement, ConfigNothing=FakeElement, getConfigListEntry=tuple,
+                                  ConfigSelection=FakeElement, ConfigNothing=FakeElement, ConfigYesNo=FakeElement, getConfigListEntry=tuple,
                                   config=types.SimpleNamespace(plugins=types.SimpleNamespace()),
                                   configfile=FakeConfigFile()),
         "Components.ConfigList": dict(ConfigListScreen=type("ConfigListScreen", (), {})), "Components.Sources": {},
@@ -215,6 +216,65 @@ class SettingsTest(unittest.TestCase):
         settings.cfg.start.value = "last"
         settings.remember_last("462")
         self.assertEqual(settings.cfg.last.saved, "462")
+
+
+class UpdateTest(unittest.TestCase):
+    def setUp(self):
+        update.installed = update.failed = ""
+
+    def test_version_file(self):
+        sha = "ab" * 32
+        self.assertEqual(update.parse_version(f"26.10.10\ninstall.sh {sha}\n".encode()), ("26.10.10", sha))
+        for bad in (b"", b"<html>404</html>\n", b"26.10.10\n", b"26.10.10\ninstall.sh xyz\n"):
+            with self.assertRaises(update.UpdateError):
+                update.parse_version(bad)
+
+    def test_only_a_different_version_is_offered(self):
+        line = f"\ninstall.sh {'0' * 64}\n"
+        self.assertIsNone(update.available(lambda url: (update.VERSION + line).encode()))
+        self.assertEqual(update.available(lambda url: ("99.1.1" + line).encode())[0], "99.1.1")
+        update.failed = "99.1.1"
+        self.assertIsNone(update.available(lambda url: ("99.1.1" + line).encode()))
+
+    def test_wrong_install_sh_checksum_is_refused(self):
+        with self.assertRaises(update.UpdateError):
+            update.install("99.1.1", "0" * 64, get=lambda url: b"rm -rf /\n", run=None)
+        self.assertEqual(update.failed, "99.1.1")
+
+    def test_install_sh_replaces_the_plugin_from_the_server(self):
+        import hashlib
+        import io
+        import tarfile
+        with tempfile.TemporaryDirectory() as d:
+            server, dest = os.path.join(d, "server"), os.path.join(d, "Extensions", "UMMeteoPL")
+            os.makedirs(server)
+            os.makedirs(dest)
+            Path(dest, "stale.py").write_text("old")
+            Path(dest, "meteo.ini").write_text("462 Kraków\n")
+            with tarfile.open(os.path.join(server, "UMMeteoPL.tar.gz"), "w:gz") as tar:
+                for name, body in (("plugin.py", b""), ("Meteo.py", b""), ("version.py", b'VERSION = "99.1.1"\n')):
+                    info = tarfile.TarInfo(f"UMMeteoPL/{name}")
+                    info.size = len(body)
+                    tar.addfile(info, io.BytesIO(body))
+            digest = hashlib.sha256(Path(server, "UMMeteoPL.tar.gz").read_bytes()).hexdigest()
+            Path(server, "UMMeteoPL.tar.gz.sha256").write_text(f"{digest}  UMMeteoPL.tar.gz\n")
+            script = (ROOT / "install.sh").read_bytes()
+            old = update.BASE_URL, update.PLUGIN_DIR
+            update.BASE_URL, update.PLUGIN_DIR = "file://" + server, dest
+            try:
+                update.install("99.1.1", hashlib.sha256(script).hexdigest(), get=lambda url: script)
+            finally:
+                update.BASE_URL, update.PLUGIN_DIR = old
+            self.assertEqual(update.installed, "99.1.1")
+            self.assertEqual(sorted(os.listdir(dest)), ["Meteo.py", "meteo.ini", "plugin.py", "version.py"])
+
+            Path(server, "UMMeteoPL.tar.gz.sha256").write_text("0" * 64 + "  UMMeteoPL.tar.gz\n")
+            update.BASE_URL, update.PLUGIN_DIR = "file://" + server, dest
+            try:
+                with self.assertRaisesRegex(update.UpdateError, "suma kontrolna archiwum"):
+                    update.install("99.1.2", hashlib.sha256(script).hexdigest(), get=lambda url: script)
+            finally:
+                update.BASE_URL, update.PLUGIN_DIR = old
 
 
 class ScreenApiTest(unittest.TestCase):
