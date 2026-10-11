@@ -329,6 +329,23 @@ class FirstLoadTest(unittest.TestCase):
             self.assertFalse(calls & (openers | {"open", "openWithCallback"}), name)
 
 
+class SkinNameTest(unittest.TestCase):
+    def test_screens_use_their_own_skin_names(self):
+        # BlackHarmony ships <screen name="Meteo"> and <screen name="Configure"> for the old
+        # plugin; enigma picks a skin screen by skinName (= class name by default)
+        import ast
+        import re
+        for name, cls in (("Meteo.py", "Meteo"), ("configure.py", "Configure")):
+            src = (ROOT / name).read_text(encoding="utf-8")
+            embedded = re.search(r'<screen name="([^"]+)"', src).group(1)
+            tree = ast.parse(src)
+            node = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls)
+            assigned = [a.value.value for a in ast.walk(node) if isinstance(a, ast.Assign)
+                        and any(isinstance(t, ast.Attribute) and t.attr == "skinName" for t in a.targets)]
+            self.assertEqual(assigned, [embedded], name)
+            self.assertNotEqual(embedded, cls)
+
+
 class KeymapTest(unittest.TestCase):
     def test_actions_are_mapped(self):
         mapped = {k.get("mapto") for k in ET.parse(ROOT / "keymap.xml").iter("key")}

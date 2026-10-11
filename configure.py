@@ -35,6 +35,9 @@ class Configure(Screen):
     def __init__(self, session):
         self.skin = build_skin()
         Screen.__init__(self, session)
+        # not the class name: skins (e.g. BlackHarmony) still carry screens of the old plugin
+        # named "Meteo" and "Configure", which would replace the embedded skin
+        self.skinName = "UMMeteoPLConfigure"
         self.setTitle("UM Meteo.pl - ulubione")
         self.locations = settings.favourites()
         self.dirty = False

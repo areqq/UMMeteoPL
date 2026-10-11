@@ -77,6 +77,9 @@ class Meteo(Screen):
     def __init__(self, session):
         self.skin = build_skin()
         Screen.__init__(self, session)
+        # not the class name: skins (e.g. BlackHarmony) still carry screens of the old plugin
+        # named "Meteo" and "Configure", which would replace the embedded skin
+        self.skinName = "UMMeteoPL"
         self.setTitle("UM Meteo.pl")
         self["title"] = Label("")
         self["status"] = Label("")

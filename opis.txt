@@ -55,6 +55,8 @@ Historia zmian:
 2026.10.11
 - pierwsze uruchomienie bez ulubionych restartowało GUI - teraz otwiera
   edytor ulubionych
+- skórki ze starymi ekranami "Meteo"/"Configure" (np. BlackHarmony) nie
+  podmieniają już ekranów wtyczki
 
 2026.10.10
 - automatyczna aktualizacja w tle (wyłączana w ustawieniach)
