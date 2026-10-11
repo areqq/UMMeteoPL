@@ -313,6 +313,22 @@ class ScreenApiTest(unittest.TestCase):
                 self.assertFalse(defs & self.RESERVED, f"{name}:{cls.name}")
 
 
+class FirstLoadTest(unittest.TestCase):
+    def test_nothing_is_opened_during_layout(self):
+        # onLayoutFinish runs inside applySkin, before the screen is modal: session.open
+        # there kills the GUI ("modal open are allowed only from a screen which is modal!",
+        # Uno 4K SE, fresh install with no favourites)
+        import ast
+        tree = ast.parse((ROOT / "Meteo.py").read_text(encoding="utf-8"))
+        meteo = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "Meteo")
+        funcs = {f.name: f for f in meteo.body if isinstance(f, ast.FunctionDef)}
+        openers = {"edit_favourites", "configure", "choose", "help", "info"}
+        for name in ("first_load", "reload", "show_location", "show_picture"):
+            calls = {c.func.attr for c in ast.walk(funcs[name])
+                     if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)}
+            self.assertFalse(calls & (openers | {"open", "openWithCallback"}), name)
+
+
 class KeymapTest(unittest.TestCase):
     def test_actions_are_mapped(self):
         mapped = {k.get("mapto") for k in ET.parse(ROOT / "keymap.xml").iter("key")}

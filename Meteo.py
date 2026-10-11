@@ -146,9 +146,11 @@ class Meteo(Screen):
         self.seq += 1
         self["title"].setText("Brak ulubionych miejscowości")
         self.set_status("MENU lub NIEBIESKI - dodaj miejscowość")
-        self.show_picture(storage.PLUGIN_DIR + "/loading.png")
+        self["chart"].hide()
         if first_run:
-            self.edit_favourites()
+            # first_load runs during applySkin, before the screen is modal; opening a
+            # screen there raises "modal open are allowed only from a screen which is modal!"
+            self.onFirstExecBegin.append(self.edit_favourites)
 
     # --- navigation --------------------------------------------------------
     def show_location(self, index, force=False):
@@ -159,6 +161,7 @@ class Meteo(Screen):
         self.seq += 1
         seq = self.seq
         self["title"].setText(loc.name)
+        self["chart"].show()
         self.update_alert()
         self.load_alerts(force)
 

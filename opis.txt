@@ -52,6 +52,10 @@ wyłączyć w ustawieniach.
 
 Historia zmian:
 
+2026.10.11
+- pierwsze uruchomienie bez ulubionych restartowało GUI - teraz otwiera
+  edytor ulubionych
+
 2026.10.10
 - automatyczna aktualizacja w tle (wyłączana w ustawieniach)
 - install.sh sprawdza sumę SHA-256 pobranej wtyczki
