@@ -79,8 +79,8 @@ def check(get=http_get, run=subprocess.run):
     return remote
 
 
-def start(enabled):
-    """Schedule the background checks; enabled() is read before each one."""
+def start():
+    """Schedule the background checks."""
     global _call
     from twisted.internet import reactor
     from twisted.internet.threads import deferToThread
@@ -88,8 +88,7 @@ def start(enabled):
     def tick():
         global _call
         _call = reactor.callLater(INTERVAL, tick)
-        if enabled():
-            deferToThread(check).addErrback(lambda f: None)   # silent: no entries in the enigma log
+        deferToThread(check).addErrback(lambda f: None)   # silent: no entries in the enigma log
 
     if _call is None or not _call.active():
         _call = reactor.callLater(FIRST_CHECK, tick)

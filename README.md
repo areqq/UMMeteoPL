@@ -109,7 +109,7 @@ i openATV (Python 3.13, MetrixHD).
 | `keymap.xml` | kontekst `MeteoActions` |
 
 Wtyczka co 8 godzin sprawdza w tle plik `version` na serwerze wtyczki i przy innej
-wersji uruchamia z niego `install.sh` (wyłączane w ustawieniach). Adres serwera jest
+wersji uruchamia z niego `install.sh`. Adres serwera jest
 w kodzie zaszyfrowany (`BASE_URL_ENC` w `update.py`, `BASE_ENC` w `install.sh`). Wydanie: podbić `version.py`, zacommitować i uruchomić
 `scripts/publish.sh`. Skrypt wysyła przez FTP `git archive HEAD` i stronę
 `docs/index.html` ze zrzutami. Cel FTP z hasłem i publiczny adres trzyma

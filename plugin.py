@@ -11,7 +11,7 @@ def main(session, **kwargs):
 
 def sessionstart(reason, session=None, **kwargs):
     from . import update
-    update.start(lambda: settings.cfg.autoupdate.value)
+    update.start()
 
 
 def Plugins(**kwargs):
