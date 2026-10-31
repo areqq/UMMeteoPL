@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>UM Meteo.pl dla enigmy2</title>
-<meta name="description" content="Wtyczka enigma2: meteogram modelu UM z meteo.pl i ostrzeżenia IMGW-PIB dla ulubionych miejscowości.">
+<meta name="description" content="Wtyczka enigma2: meteogram modelu UM z danych meteo.pl (ICM UW), rysowany na dekoderze, i ostrzeżenia IMGW-PIB dla ulubionych miejscowości.">
 <style>
 :root {
   --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5b6475; --line: #dde1e8;
@@ -55,8 +55,9 @@ footer { margin-top: 56px; color: var(--muted); font-size: .9rem; }
 <main>
 
 <h1>UM Meteo.pl dla enigmy2</h1>
-<p class="lead">Meteogram modelu UM z <a href="https://www.meteo.pl">meteo.pl</a> (ICM, Uniwersytet Warszawski)
-dla listy ulubionych miejscowości, razem z ostrzeżeniami meteorologicznymi IMGW-PIB dla ich powiatu.</p>
+<p class="lead">Meteogram modelu UM z danych <a href="https://www.meteo.pl">meteo.pl</a> (ICM, Uniwersytet Warszawski)
+dla listy ulubionych miejscowości, rysowany na dekoderze w układzie znanym ze starego serwisu,
+razem z ostrzeżeniami meteorologicznymi IMGW-PIB dla ich powiatu.</p>
 
 <section class="install" id="instalacja">
   <h2>Instalacja</h2>
@@ -73,9 +74,14 @@ dla listy ulubionych miejscowości, razem z ostrzeżeniami meteorologicznymi IMG
 
 <h2 id="meteogram">Meteogram</h2>
 <figure>
-  <img src="screenshots/meteogram.png" alt="Meteogram dla Warszawy" width="960" height="755">
+  <img src="screenshots/meteogram.png" alt="Meteogram dla Warszawy" width="960" height="648">
 </figure>
+<p>Prognoza UM 4 km na 60 godzin, co godzinę: temperatura (ze średnią, pasmem min–max, odczuwalną, punktem rosy
+i temperaturą gruntu), opad z podziałem na deszcz, śnieg i deszcz ze śniegiem, burze, wilgotność i prawdopodobieństwo
+opadu, ciśnienie, wiatr z porywami i kierunkiem, podstawa i wierzchołek chmur, widzialność, zachmurzenie na czterech
+piętrach i mgła. Noc jest zaznaczona szarymi pasmami, u góry czas lokalny, na dole UTC.</p>
 <ul>
+  <li>wykres rysuje sama wtyczka z liczb pobranych z meteo.pl, więc jest ostry w HD, FullHD i 4K</li>
   <li>2358 miejscowości ze wszystkich województw, z wyszukiwarką, w której wielkość liter i polskie znaki nie mają znaczenia</li>
   <li>przełączanie miejscowości strzałkami, CH+/CH−, klawiszami 1–9 albo z listy; pobrane meteogramy są pamiętane,
       więc powrót jest natychmiastowy</li>
@@ -136,8 +142,11 @@ ZIELONY zapisuje. EXIT z niezapisanymi zmianami pyta, co zrobić.</p>
 
 <h2 id="dane">Skąd są dane</h2>
 <ul>
-  <li><strong>Meteogram:</strong> meteo.pl, model UM. Serwer dokleja nad wykresem baner, który wtyczka odcina,
-      dzięki czemu wykres pokrywa się z legendą.</li>
+  <li><strong>Prognoza:</strong> meteo.pl (ICM UW), model UM 4 km, 60 godzin. Od października 2026 stary serwis
+      old.meteo.pl z gotowymi obrazkami nie działa; wtyczka pobiera liczby z tego samego źródła, z którego korzysta
+      aplikacja app.meteo.pl, i rysuje meteogram sama.</li>
+  <li><strong>Współrzędne miejscowości:</strong> tabela id meteo.pl → szerokość i długość geograficzna, zbudowana
+      z Państwowego Rejestru Nazw Geograficznych PRNG (GUGiK).</li>
   <li><strong>Ostrzeżenia:</strong> publiczne API IMGW-PIB
       <a href="https://danepubliczne.imgw.pl/api/data/warningsmeteo"><code>danepubliczne.imgw.pl/api/data/warningsmeteo</code></a>,
       sprawdzane co 10 minut.</li>

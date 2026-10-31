@@ -1,11 +1,19 @@
 # UM Meteo.pl — meteogram na dekoderze z enigmą2
 
-Wtyczka enigma2 pokazująca **meteogram modelu UM** z [meteo.pl](https://www.meteo.pl)
+Wtyczka enigma2 pokazująca **meteogram modelu UM** z danych [meteo.pl](https://www.meteo.pl)
 (ICM, Uniwersytet Warszawski) dla listy ulubionych miejscowości, razem z
-**ostrzeżeniami meteorologicznymi IMGW-PIB** dla ich powiatu.
+**ostrzeżeniami meteorologicznymi IMGW-PIB** dla ich powiatu. Od października 2026
+stary serwis old.meteo.pl z gotowymi obrazkami nie działa, więc wtyczka pobiera liczby
+z tego samego źródła co aplikacja app.meteo.pl i rysuje meteogram sama, w układzie
+znanym ze starego serwisu.
 
 ![Meteogram dla Warszawy](docs/screenshots/meteogram.png)
 
+- prognoza UM 4 km na 60 godzin: temperatura (średnia, min–max, odczuwalna, punkt rosy,
+  temperatura gruntu), opad (deszcz / śnieg / deszcz ze śniegiem), burze, wilgotność,
+  prawdopodobieństwo opadu, ciśnienie, wiatr z porywami i kierunkiem, podstawa i
+  wierzchołek chmur, widzialność, zachmurzenie na czterech piętrach, mgła; noc zaznaczona
+- wykres rysowany na dekoderze, ostry w HD, FullHD i 4K
 - 2358 miejscowości ze wszystkich województw, z wyszukiwarką, w której wielkość liter
   i polskie znaki nie mają znaczenia
 - przełączanie miejscowości strzałkami, CH+/CH−, klawiszami 1–9 albo z listy;
@@ -85,8 +93,11 @@ i openATV (Python 3.13, MetrixHD).
 
 ## Skąd są dane
 
-- **Meteogram:** meteo.pl, model UM. Serwer dokleja nad wykresem baner, który wtyczka
-  odcina, dzięki czemu wykres pokrywa się z legendą.
+- **Prognoza:** meteo.pl (ICM UW), model UM 4 km, 60 godzin, z API meteogramów
+  aplikacji app.meteo.pl (JSON z wartościami godzinowymi dla punktu).
+- **Współrzędne miejscowości:** tabela [`coords.tsv`](coords.tsv) (id meteo.pl → szerokość,
+  długość) zbudowana z Państwowego Rejestru Nazw Geograficznych PRNG (GUGiK) skryptem
+  [`tools/build_coords.py`](tools/build_coords.py).
 - **Ostrzeżenia:** publiczne API IMGW-PIB
   [`danepubliczne.imgw.pl/api/data/warningsmeteo`](https://danepubliczne.imgw.pl/api/data/warningsmeteo),
   sprawdzane co 10 minut.
@@ -98,7 +109,10 @@ i openATV (Python 3.13, MetrixHD).
 
 | plik | rola |
 |---|---|
-| `meteogram.py` | adresy meteo.pl, parsowanie strony, pobieranie (bez zależności od enigmy) |
+| `meteogram.py` | API meteo.pl: lista przebiegów, prognoza dla punktu, `coords.tsv` (bez enigmy) |
+| `chart.py` | rysowanie meteogramu z prognozy, wschód/zachód słońca, czas lokalny (bez enigmy) |
+| `render.py` | płótno RGB, linie, wypełnienia, tekst z `glyphs.bin` (DejaVu Sans), zapis PNG (bez enigmy) |
+| `tools/` | odtwarzanie `coords.tsv`, `teryt.tsv`, `glyphs.bin`, `loading.png`/`error.png` |
 | `alerts.py` | ostrzeżenia IMGW-PIB dla powiatu (bez enigmy) |
 | `storage.py` | katalog `woj/*`, wyszukiwarka, (de)serializacja ulubionych (bez enigmy) |
 | `settings.py` | `config.plugins.UMMeteoPL`, migracja `meteo.ini` |

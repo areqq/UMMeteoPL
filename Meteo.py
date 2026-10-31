@@ -15,7 +15,7 @@ from Screens.ChoiceBox import ChoiceBox
 from Screens.Screen import Screen
 from Screens.TextBox import TextBox
 
-from . import alerts, meteogram, settings, storage
+from . import alerts, chart, meteogram, settings, storage
 from .version import VERSION
 TMP_DIR = "/tmp/ummeteo"
 ALERTS_TTL = 10 * 60
@@ -23,6 +23,9 @@ ALERTS_TTL = 10 * 60
 ALERT_COLOURS = {1: (0xf2c200, 0x202020), 2: (0xff8c00, 0x202020), 3: (0xd02020, 0xffffff)}
 
 SCALE = getDesktop(0).size().height() / 720.0
+# the meteogram is drawn in Python (chart.py); at 4K a 1:1 picture takes a few seconds on
+# an ARM decoder, so it is drawn for FullHD and scaled up by ePicLoad
+RENDER_SCALE = min(SCALE, 1.5)
 
 
 def s(value):
@@ -46,15 +49,13 @@ RED, GREEN, YELLOW, BLUE = "#00e04040", "#0030b030", "#00e0c020", "#003070e0"
 
 
 def build_skin():
-    legend = "leftfhd.png" if SCALE >= 1.5 else "left.png"
-    header, chart_w, chart_h, legend_w = 26, meteogram.CHART_WIDTH, meteogram.CHART_HEIGHT, 280
-    width, footer_y = legend_w + chart_w, header + chart_h
+    header, chart_w, chart_h = 26, chart.WIDTH, chart.HEIGHT
+    width, footer_y = chart_w, header + chart_h
     return f"""
     <screen name="UMMeteoPL" position="center,center" size="{s(width)},{s(footer_y + 30)}" flags="wfNoBorder" backgroundColor="#00ffffff" title="UM Meteo.pl">
         <widget name="title" position="{s(10)},0" size="{s(500)},{s(header)}" font="Regular;{s(20)}" valign="center" foregroundColor="#00202020" backgroundColor="#00ffffff" />
         <widget name="status" position="{s(510)},0" size="{s(width - 520)},{s(header)}" font="Regular;{s(16)}" halign="right" valign="center" foregroundColor="#00505050" backgroundColor="#00ffffff" />
-        <ePixmap position="0,{s(header)}" size="{s(legend_w)},{s(chart_h)}" pixmap="{storage.PLUGIN_DIR}/{legend}" scale="1" />
-        <widget name="chart" position="{s(legend_w)},{s(header)}" size="{s(chart_w)},{s(chart_h)}" zPosition="1" />
+        <widget name="chart" position="0,{s(header)}" size="{s(chart_w)},{s(chart_h)}" zPosition="1" />
         {keys_bar(footer_y, width, [(RED, "Odśwież", 110), (GREEN, "Następna", 115), (YELLOW, "Pomoc", 100), (BLUE, "Ustawienia", 125)], "#00ececec")}
         <widget name="hints" position="{s(460)},{s(footer_y)}" size="{s(width - 470)},{s(30)}" font="Regular;{s(16)}" halign="right" valign="center" foregroundColor="#00606060" backgroundColor="#00ececec" zPosition="1" />
         <widget name="alert" position="{s(460)},{s(footer_y + 2)}" size="{s(width - 462)},{s(26)}" font="Regular;{s(15)}" halign="center" valign="center" noWrap="1" foregroundColor="#00202020" backgroundColor="#00f2c200" zPosition="2" />
@@ -194,7 +195,8 @@ class Meteo(Screen):
     # --- worker thread -----------------------------------------------------
     @staticmethod
     def download(location_id):
-        forecast, png, size = meteogram.fetch(location_id)
+        forecast = meteogram.fetch(location_id)
+        png, size = chart.render_png(forecast, RENDER_SCALE)
         path = f"{TMP_DIR}/{location_id}.png"
         with open(path, "wb") as f:
             f.write(png)
@@ -270,10 +272,7 @@ class Meteo(Screen):
 
     # --- picture -----------------------------------------------------------
     def show_picture(self, path, size=None):
-        """Decode in the background, scaled to the chart width.
-
-        Anything taller than the chart (the banner above it) is cut off by
-        bottom alignment."""
+        """Decode in the background, scaled to the chart width (bottom aligned)."""
         if self.decoding:
             self.queued = (path, size)
             return

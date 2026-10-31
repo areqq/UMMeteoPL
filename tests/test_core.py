@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """Host-side tests: python3 -m unittest discover -s tests -t ."""
+import calendar
+import json
 import os
+import struct
 import sys
 import tempfile
 import types
@@ -19,31 +22,128 @@ alerts = __import__(f"{PKG}.alerts", fromlist=["x"])
 update = __import__(f"{PKG}.update", fromlist=["x"])
 
 
-class ParseTest(unittest.TestCase):
-    def test_page(self):
-        f = meteogram.parse_page((FIX / "meteorogram_2119.html").read_bytes())
-        self.assertEqual((f.date, f.row, f.col), ("2026100912", "393", "208"))
-        self.assertEqual(f.place, "Dobre, pow.radziejowski, woj.kujawsko-pomorskie")
-        self.assertEqual(f.run, "09.10.2026 12 UTC")
-        self.assertIn("fdate=2026100912&row=393&col=208", f.picture_url)
+chart = __import__(f"{PKG}.chart", fromlist=["x"])
+render = __import__(f"{PKG}.render", fromlist=["x"])
 
-    def test_invalid_id(self):
-        with self.assertRaises(meteogram.ParseError):
-            meteogram.parse_page((FIX / "meteorogram_invalid_id.html").read_bytes())
+RUN = 1793448000        # 31.10.2026 12 UTC, the run of the Warszawa fixture
 
-    def test_png_size(self):
-        self.assertEqual(meteogram.png_size((FIX / "mgram_head.png").read_bytes()), (630, 780))
+
+def forecast():
+    raw = (FIX / "um4_60_warszawa_2026-10-31.json").read_bytes()
+    return meteogram.parse_forecast(raw, RUN, 52.2298, 21.0117)
+
+
+class ApiTest(unittest.TestCase):
+    """Real responses of devmgramapi.meteo.pl captured 2026-10-31."""
+
+    def test_available_newest_first(self):
+        runs = meteogram.parse_available((FIX / "available_2026-10-31.json").read_bytes())
+        self.assertEqual(runs[0], RUN)
+        self.assertEqual(runs, sorted(runs, reverse=True))
         with self.assertRaises(meteogram.ParseError):
-            meteogram.png_size(b"<html>error</html>" * 3)
+            meteogram.parse_available(b"<html>")
+
+    def test_forecast(self):
+        f = forecast()
+        self.assertEqual((f.steps, f.interval, f.start), (60, 3600, RUN + 3600))
+        self.assertEqual((f.row, f.col), (212, 252))
+        self.assertEqual(f.run, "31.10.2026 12 UTC")
+        self.assertEqual(set(f.series), set(meteogram.SERIES))
+        self.assertAlmostEqual(f["airtmp_point"][0], 9.475)
+        # the API marks 'no cloud base' with a huge negative number
+        self.assertTrue(all(v is None or v >= 0 for v in f["cldbse79"]))
+        self.assertIn(None, f["cldbse79"])
+
+    def test_unknown_shape_is_an_error(self):
+        for raw in (b"{}", b'{"data": {}}', b"<html>", b'{"data": {"airtmp_point": {"data": []}}}'):
+            with self.assertRaises(meteogram.ParseError):
+                meteogram.parse_forecast(raw, RUN, 52.0, 21.0)
 
     def test_fetch_with_fake_transport(self):
-        page = (FIX / "meteorogram_2119.html").read_bytes()
-        png = (FIX / "mgram_head.png").read_bytes()
-        urls = []
-        get = lambda url: urls.append(url) or (page if "meteorogram_id" in url else png)
-        forecast, raw, size = meteogram.fetch("2119", get)
-        self.assertEqual(size, (630, 780))
-        self.assertTrue(urls[0].endswith("id=2119"))
+        calls = []
+
+        def get(url):
+            calls.append(("GET", url))
+            return (FIX / "available_2026-10-31.json").read_bytes()
+
+        def post(url, body):
+            calls.append(("POST", url, json.loads(body)))
+            return (FIX / "um4_60_warszawa_2026-10-31.json").read_bytes()
+        f = meteogram.fetch("2727", get, post)
+        self.assertEqual(f.run_time, RUN)
+        self.assertEqual(calls[0], ("GET", meteogram.API + "/available"))
+        self.assertEqual(calls[1][1], meteogram.API + "/um4_60")
+        self.assertEqual(calls[1][2], {"point": {"lat": "52.2298", "lon": "21.0117"}, "date": RUN})
+        with self.assertRaisesRegex(meteogram.ParseError, "współrzędnych"):
+            meteogram.fetch("999999", get, post)
+
+    def test_fetch_falls_back_to_the_previous_run(self):
+        posts = []
+
+        def post(url, body):
+            posts.append(json.loads(body)["date"])
+            if len(posts) == 1:
+                raise meteogram.ParseError("not ready")
+            return (FIX / "um4_60_warszawa_2026-10-31.json").read_bytes()
+        f = meteogram.fetch("2727", lambda url: (FIX / "available_2026-10-31.json").read_bytes(), post)
+        self.assertEqual(posts, [RUN, RUN - 6 * 3600])
+        self.assertEqual(f.run_time, RUN - 6 * 3600)
+
+    def test_coords_cover_the_catalogue(self):
+        coords = meteogram.load_coords()
+        for label, woj in storage.VOIVODESHIPS:
+            for loc in storage.towns(woj):
+                lat, lon = coords[loc.id]
+                self.assertTrue(49.0 <= lat <= 54.9 and 14.1 <= lon <= 24.2, str(loc))
+
+
+class ChartTest(unittest.TestCase):
+    def test_png_at_every_scale(self):
+        for scale, size in ((1.0, (1060, 660)), (1.5, (1590, 990)), (3.0, (3180, 1980))):
+            png, got = chart.render_png(forecast(), scale)
+            self.assertEqual(got, size)
+            self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
+            self.assertEqual(struct.unpack(">II", png[16:24]), size)
+
+    def test_missing_values_do_not_crash(self):
+        f = forecast()
+        for name in f.series:
+            f.series[name] = [None] * f.steps
+        chart.render_png(f, 1.0)
+        f = forecast()
+        f.series["pcpttl_max"] = [50.0] * f.steps     # over the scale
+        f.series["storm_max"] = [1.0] * f.steps
+        chart.render_png(f, 1.0)
+
+    def test_sun_and_local_time(self):
+        rise, sset = chart.sun_times(52.23, 21.01, RUN)
+        local_rise, local_set = chart.local(rise), chart.local(sset)
+        # Warszawa, 31.10.2026 (CET): sunrise 06:28, sunset 16:10 (timeanddate.com: 6:28 / 16:10)
+        self.assertEqual((local_rise.tm_hour, local_rise.tm_min), (6, 28))
+        self.assertEqual((local_set.tm_hour, local_set.tm_min), (16, 10))
+        self.assertEqual(chart.local_offset(RUN), 3600)
+        march = calendar.timegm((2026, 3, 29, 1, 0, 0))      # last Sunday of March 2026
+        self.assertEqual((chart.local_offset(march - 1), chart.local_offset(march)), (3600, 7200))
+        october = calendar.timegm((2026, 10, 25, 1, 0, 0))
+        self.assertEqual((chart.local_offset(october - 1), chart.local_offset(october)), (7200, 3600))
+
+    def test_fonts_and_canvas(self):
+        f = render.font(11)
+        self.assertEqual(f.size, 11)
+        self.assertGreater(f.width("Temperatura"), f.width("Temp"))
+        c = render.Canvas(20, 10)
+        c.fill(2, 2, 5, 4, (1, 2, 3))
+        self.assertEqual(bytes(c.rows[2][6:9]), b"\x01\x02\x03")
+        self.assertEqual(bytes(c.rows[4][6:9]), b"\xff\xff\xff")
+        c.text(0, 8, "Ab °ą", f, (0, 0, 0))
+        self.assertTrue(any(b != 255 for row in c.rows for b in row))
+        c.vtext(15, 9, "x", f, (0, 0, 0))
+        self.assertEqual(len(c.png()) > 50, True)
+
+    def test_placeholders_are_current(self):
+        for name in ("loading.png", "error.png"):
+            png = (ROOT / name).read_bytes()
+            self.assertEqual(struct.unpack(">II", png[16:24]), (1590, 990), name)
 
 
 class StorageTest(unittest.TestCase):
@@ -139,7 +239,7 @@ class SkinTest(unittest.TestCase):
             w, h = self.check(Meteo.build_skin())
             self.assertLessEqual(h, height)
             self.check(configure.build_skin())
-            self.assertIn("leftfhd.png" if height >= 1080 else "left.png", Meteo.build_skin())
+            self.assertEqual(Meteo.RENDER_SCALE, min(height / 720.0, 1.5))
 
 
 class AlertsTest(unittest.TestCase):

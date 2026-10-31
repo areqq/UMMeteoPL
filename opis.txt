@@ -11,9 +11,15 @@ EKRAN METEOGRAMU
   ŻÓŁTY                           ta pomoc
   EXIT                            wyjście
 
-Pobrany meteogram jest pamiętany (domyślnie 30 minut), więc przełączanie
-między miejscowościami jest natychmiastowe. Godzina startu prognozy (UTC)
-jest w prawym górnym rogu.
+Meteogram to prognoza modelu UM 4 km na 60 godzin, co godzinę, rysowana
+na dekoderze z liczb pobranych z meteo.pl: temperatura (średnia, pasmo
+min-max, odczuwalna, punkt rosy, temperatura gruntu), opad (deszcz, śnieg,
+deszcz ze śniegiem, burze, wilgotność, prawdopodobieństwo opadu), ciśnienie,
+wiatr z porywami i kierunkiem, podstawa i wierzchołek chmur, widzialność,
+zachmurzenie na czterech piętrach i mgła. Szare pasma to noc, u góry czas
+lokalny (CET/CEST), na dole UTC. Pobrana prognoza jest pamiętana (domyślnie
+30 minut), więc przełączanie między miejscowościami jest natychmiastowe.
+Godzina startu prognozy (UTC) jest w prawym górnym rogu.
 
 OSTRZEŻENIA IMGW
 Gdy dla powiatu wybranej miejscowości obowiązuje (albo jest zapowiedziane)
@@ -43,10 +49,18 @@ Ustawienia są w /etc/enigma2/settings (config.plugins.UMMeteoPL), więc
 przetrwają aktualizację wtyczki i trafiają do kopii zapasowej ustawień.
 Lista z dawnego meteo.ini jest przenoszona automatycznie.
 
-Źródło danych: www.meteo.pl, ICM UW.
+Źródło danych: meteo.pl (ICM UW), model UM; współrzędne miejscowości z
+Państwowego Rejestru Nazw Geograficznych (GUGiK).
 
 
 Historia zmian:
+
+2026.10.31
+- meteo.pl wyłączyło stary serwis z gotowymi obrazkami meteogramów (adres
+  zwracał reklamę nowej aplikacji) - wtyczka pobiera teraz liczby z API
+  aplikacji app.meteo.pl i rysuje meteogram sama, w dawnym układzie
+- współrzędne wszystkich 2358 miejscowości z rejestru PRNG (GUGiK)
+- wykres ostry w każdej rozdzielczości, bez PIL i ImageMagick
 
 2026.10.11
 - pierwsze uruchomienie bez ulubionych restartowało GUI - teraz otwiera
