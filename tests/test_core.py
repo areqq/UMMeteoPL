@@ -99,7 +99,7 @@ class ApiTest(unittest.TestCase):
 
 class ChartTest(unittest.TestCase):
     def test_png_at_every_scale(self):
-        for scale, size in ((1.0, (1060, 660)), (1.5, (1590, 990)), (3.0, (3180, 1980))):
+        for scale, size in ((1.0, (1060, 660)), (1.5, (1590, 990)), (2.0, (2120, 1320)), (3.0, (3180, 1980))):
             png, got = chart.render_png(forecast(), scale)
             self.assertEqual(got, size)
             self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
@@ -231,7 +231,7 @@ class SkinTest(unittest.TestCase):
         return sw, sh
 
     def test_skins_fit_every_resolution(self):
-        for height in (720, 1080, 2160):
+        for height in (720, 1080, 1440, 2160):
             stub_enigma(height)
             Meteo = __import__(f"{PKG}.Meteo", fromlist=["x"])
             __import__(f"{PKG}.setup", fromlist=["x"])
@@ -239,7 +239,7 @@ class SkinTest(unittest.TestCase):
             w, h = self.check(Meteo.build_skin())
             self.assertLessEqual(h, height)
             self.check(configure.build_skin())
-            self.assertEqual(Meteo.RENDER_SCALE, min(height / 720.0, 1.5))
+            self.assertEqual(Meteo.RENDER_SCALE, min(height / 720.0, 2.0))
 
 
 class AlertsTest(unittest.TestCase):

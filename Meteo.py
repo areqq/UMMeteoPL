@@ -23,9 +23,10 @@ ALERTS_TTL = 10 * 60
 ALERT_COLOURS = {1: (0xf2c200, 0x202020), 2: (0xff8c00, 0x202020), 3: (0xd02020, 0xffffff)}
 
 SCALE = getDesktop(0).size().height() / 720.0
-# the meteogram is drawn in Python (chart.py); at 4K a 1:1 picture takes a few seconds on
-# an ARM decoder, so it is drawn for FullHD and scaled up by ePicLoad
-RENDER_SCALE = min(SCALE, 1.5)
+# the meteogram is drawn in Python (chart.py): 1:1 for HD, FullHD and WQHD (2560x1440, scale 2);
+# at 4K a 1:1 picture takes 7.5 s on an ARM decoder (Uno 4K SE), so it is drawn at scale 2
+# and scaled up by ePicLoad
+RENDER_SCALE = min(SCALE, 2.0)
 
 
 def s(value):

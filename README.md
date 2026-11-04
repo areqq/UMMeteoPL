@@ -13,7 +13,7 @@ znanym ze starego serwisu.
   temperatura gruntu), opad (deszcz / śnieg / deszcz ze śniegiem), burze, wilgotność,
   prawdopodobieństwo opadu, ciśnienie, wiatr z porywami i kierunkiem, podstawa i
   wierzchołek chmur, widzialność, zachmurzenie na czterech piętrach, mgła; noc zaznaczona
-- wykres rysowany na dekoderze, ostry w HD, FullHD i 4K
+- wykres rysowany na dekoderze, ostry w HD, FullHD, WQHD i 4K
 - 2358 miejscowości ze wszystkich województw, z wyszukiwarką, w której wielkość liter
   i polskie znaki nie mają znaczenia
 - przełączanie miejscowości strzałkami, CH+/CH−, klawiszami 1–9 albo z listy;

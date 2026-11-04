@@ -16,8 +16,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-# render.py: base sizes at 720p times the chart scales (1, 1.5, 3)
-SIZES = sorted({round(base * scale) for base in (9, 11, 13) for scale in (1, 1.5, 3)})
+# render.py: base sizes at 720p times the chart scales (1, 1.5, 2, 3)
+SIZES = sorted({round(base * scale) for base in (9, 11, 13) for scale in (1, 1.5, 2, 3)})
 CHARS = "".join(chr(c) for c in range(32, 127)) + "ąćęłńóśźżĄĆĘŁŃÓŚŹŻ°·×–"
 
 
