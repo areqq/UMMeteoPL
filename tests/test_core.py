@@ -146,6 +146,79 @@ class ChartTest(unittest.TestCase):
             self.assertEqual(struct.unpack(">II", png[16:24]), (1590, 990), name)
 
 
+class RenderTest(unittest.TestCase):
+    """The row-slice fast paths in render.py must draw what the per-pixel code drew."""
+
+    def test_text_fast_path_equals_blending(self):
+        f = render.font(16)
+        fast = render.Canvas(120, 30, (200, 220, 240))
+        fast.text(3, 20, "Wiatr 12 km/h", f, (10, 20, 30))
+        slow = render.Canvas(120, 30, (200, 220, 240))
+        x = 3
+        for ch in "Wiatr 12 km/h":
+            for dx, dy, a in f.pixels(ch):
+                slow.blend(x + dx, 20 + dy, (10, 20, 30), a)
+            x += f.glyph(ch)[4]
+        self.assertEqual(fast.rows, slow.rows)
+        self.assertTrue(any(b != 200 for b in fast.rows[15]))
+        # a glyph over a non-uniform background still blends pixel by pixel
+        fast.fill(0, 0, 120, 30, (255, 255, 255))
+        fast.fill(0, 0, 120, 15, (0, 0, 0))
+        fast.text(3, 20, "W", f, (255, 0, 0))
+        self.assertTrue(any(bytes(fast.rows[y][9:12]) not in (b"\x00\x00\x00", b"\xff\xff\xff") for y in range(30)))
+
+    def test_dotted_and_dashed_lines(self):
+        c = render.Canvas(30, 5)
+        c.dotted_hline(2, 20, 1, (1, 2, 3), 2, 4)
+        xs = [x for x in range(30) if bytes(c.rows[1][x * 3:x * 3 + 3]) == b"\x01\x02\x03"]
+        self.assertEqual(xs, [2, 3, 8, 9, 14, 15, 20])
+        c.dotted_vline(25, 0, 4, (1, 2, 3), 1, 2)
+        self.assertEqual([y for y in range(5) if c.rows[y][75] == 1], [0, 3])
+        c = render.Canvas(30, 5)
+        c.line(0, 2, 29, 2, (9, 9, 9), 1, dash=(3, 2))
+        xs = [x for x in range(30) if c.rows[2][x * 3] == 9]
+        self.assertEqual(xs, [x for x in range(30) if x % 5 < 3])
+        self.assertEqual(sum(1 for y in (1, 3) for b in c.rows[y] if b == 9), 0)
+
+    def test_lines_cover_bresenham_pixels(self):
+        for (x0, y0, x1, y1) in ((1, 1, 25, 9), (25, 9, 1, 1), (2, 20, 6, 1), (0, 0, 20, 0), (5, 0, 5, 20)):
+            c = render.Canvas(30, 24)
+            c.line(x0, y0, x1, y1, (0, 0, 0))
+            lit = {(x, y) for y in range(24) for x in range(30) if c.rows[y][x * 3] == 0}
+            steps = max(abs(x1 - x0), abs(y1 - y0))
+            self.assertEqual(len(lit), steps + 1, (x0, y0, x1, y1))
+            self.assertIn((x0, y0), lit)
+            self.assertIn((x1, y1), lit)
+            for x, y in lit:                       # 8-connected, one pixel per major-axis step
+                self.assertTrue(any((x + dx, y + dy) in lit for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy))
+        c = render.Canvas(30, 24)
+        c.line(2, 10, 27, 12, (0, 0, 0), 3)
+        self.assertEqual(sum(1 for b in c.rows[8] if b == 0) + sum(1 for b in c.rows[14] if b == 0), 0)
+        self.assertGreater(sum(1 for b in c.rows[11] if b == 0), 3 * 20)
+
+    def test_area_and_band_fill_columns(self):
+        c = render.Canvas(40, 20)
+        xs, ys = [5.0, 15.0, 25.0, 35.0], [15.0, 5.0, 10.0, 2.0]
+        c.area(xs, ys, 18, (0, 0, 0))
+        for x in (6, 10, 15, 20, 30, 34):
+            y_curve = ys[(x - 5) // 10] + (ys[(x - 5) // 10 + 1] - ys[(x - 5) // 10]) * ((x - 5) % 10) / 10.0
+            col = [c.rows[y][x * 3] for y in range(20)]
+            self.assertEqual(col[17], 0, x)                                 # row above the base line
+            self.assertEqual(col[18], 255, x)                               # the base line itself is not filled
+            self.assertEqual(col[int(y_curve + 2)], 0, x)
+            self.assertEqual(col[max(0, int(y_curve - 2))], 255, x)
+        self.assertEqual(c.rows[16][2 * 3], 255)                            # nothing left of xs[0]
+        c = render.Canvas(40, 20)
+        c.band([0.0, 39.0], [5.0, 5.0], [10.0, 10.0], (0, 0, 0))
+        self.assertEqual([y for y in range(20) if c.rows[y][60] == 0], [5, 6, 7, 8, 9])
+
+    def test_fonts_parse_lazily(self):
+        fonts = render._load_fonts()
+        self.assertEqual(len(fonts), 12)
+        self.assertEqual(render.font(13).glyph("A")[4], render.font(13).width("A"))
+        self.assertGreater(len(render.font(13)._glyphs), 100)
+
+
 class StorageTest(unittest.TestCase):
     def test_catalogue_is_valid(self):
         for label, woj in storage.VOIVODESHIPS:

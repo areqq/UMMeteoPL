@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 """Tiny raster toolkit for chart.py: RGB canvas, lines, filled shapes, bitmap text,
 PNG output. Pure Python, no PIL (the decoders do not have it); 8-bit antialiased
-glyphs come from glyphs.bin (DejaVu Sans, tools/build_font.py). No enigma2 imports."""
+glyphs come from glyphs.bin (DejaVu Sans, tools/build_font.py). No enigma2 imports.
+
+Written for slow boxes (a 750 MHz MIPS runs Python ~80x slower than a PC), so every
+primitive works on whole row slices of the bytearrays, not on single pixels:
+areas are scanline polygons, dotted lines are strided slice assignments, glyphs on
+a uniform background are cached pre-blended rows."""
 import os
 import struct
 import zlib
@@ -9,6 +14,16 @@ import zlib
 GLYPHS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "glyphs.bin")
 
 _fonts = None      # {pixel size: Font}
+_luts = {}         # (fg, bg) -> [3 bytes for every alpha 0..255]
+_discs = {}        # (r, rgb) -> [(dy, half, row bytes)]
+
+
+def _lut(fg, bg):
+    lut = _luts.get((fg, bg))
+    if lut is None:
+        lut = _luts[(fg, bg)] = [bytes((bg[c] * (255 - a) + fg[c] * a) // 255 for c in range(3))
+                                 for a in range(256)]
+    return lut
 
 
 class Font:
@@ -19,6 +34,7 @@ class Font:
         self.height = ascent + descent
         self._glyphs = glyphs          # codepoint -> (left, top, w, h, advance, alpha bytes)
         self._pixels = {}              # codepoint -> [(dx, dy, alpha), ...] (dy from the baseline)
+        self._rendered = {}            # (codepoint, fg, bg) -> [row bytes] of the glyph box
 
     def glyph(self, ch):
         return self._glyphs.get(ord(ch)) or self._glyphs.get(ord("?"))
@@ -27,15 +43,27 @@ class Font:
         return sum(self.glyph(ch)[4] for ch in text)
 
     def pixels(self, ch):
-        g = self.glyph(ch)
         key = ord(ch)
         if key not in self._pixels:
-            left, top, w, h, _adv, bits = g
+            left, top, w, h, _adv, bits = self.glyph(ch)
             self._pixels[key] = [(left + i % w, i // w - top, a) for i, a in enumerate(bits) if a]
         return self._pixels[key]
 
+    def rendered(self, ch, fg, bg):
+        """Glyph box blended onto a uniform background: one bytes row per glyph row."""
+        key = (ord(ch), fg, bg)
+        rows = self._rendered.get(key)
+        if rows is None:
+            _left, _top, w, h, _adv, bits = self.glyph(ch)
+            lut = _lut(fg, bg)
+            rows = self._rendered[key] = [b"".join(map(lut.__getitem__, bits[r * w:(r + 1) * w]))
+                                          for r in range(h)]
+        return rows
+
 
 def _load_fonts():
+    """{pixel size: Font}; a Font parses its glyphs on first use (3 of 12 sizes are
+    needed for one chart, and the parse is slow on a 750 MHz MIPS)."""
     global _fonts
     if _fonts is not None:
         return _fonts
@@ -47,21 +75,44 @@ def _load_fonts():
     while pos < len(raw):
         size, ascent, descent, count = struct.unpack_from(">BbbH", raw, pos)
         pos += 5
-        glyphs = {}
+        start = pos
         for _ in range(count):
-            code, left, top, w, h, adv = struct.unpack_from(">HbbBBB", raw, pos)
-            pos += 7
-            glyphs[code] = (left, top, w, h, adv, raw[pos:pos + w * h])
-            pos += w * h
-        fonts[size] = Font(size, ascent, descent, glyphs)
+            pos += 7 + raw[pos + 4] * raw[pos + 5]
+        fonts[size] = Font(size, ascent, descent, _GlyphTable(raw, start, count))
     _fonts = fonts
     return fonts
+
+
+class _GlyphTable(dict):
+    """codepoint -> (left, top, w, h, advance, alpha bytes), parsed on first access."""
+
+    def __init__(self, raw, pos, count):
+        dict.__init__(self)
+        self._src = (raw, pos, count)
+
+    def _parse(self):
+        if self._src:
+            raw, pos, count = self._src
+            self._src = None
+            for _ in range(count):
+                code, left, top, w, h, adv = struct.unpack_from(">HbbBBB", raw, pos)
+                pos += 7
+                self[code] = (left, top, w, h, adv, raw[pos:pos + w * h])
+                pos += w * h
+
+    def get(self, key, default=None):
+        self._parse()
+        return dict.get(self, key, default)
 
 
 def font(size):
     """Font of the nearest available pixel size."""
     fonts = _load_fonts()
     return fonts[min(fonts, key=lambda s: (abs(s - size), s))]
+
+
+def _ceil_div(p, q):
+    return -((-p) // q)
 
 
 class Canvas:
@@ -90,94 +141,124 @@ class Canvas:
         self.fill(x, y0, x + width, y1 + 1, rgb)
 
     def dotted_hline(self, x0, x1, y, rgb, on=1, off=2):
-        for x in range(x0, x1 + 1, on + off):
-            self.fill(x, y, min(x + on, x1 + 1), y + 1, rgb)
+        """1 px high, dashes of `on` px every on+off px from x0 to x1 inclusive."""
+        if not 0 <= y < self.height:
+            return
+        x0, x1 = max(0, x0), min(self.width - 1, x1)
+        row, period, stop = self.rows[y], on + off, (x1 + 1) * 3
+        for j in range(on):
+            n = len(range(x0 + j, x1 + 1, period))
+            if n:
+                for c in range(3):
+                    row[(x0 + j) * 3 + c:stop:3 * period] = bytes((rgb[c],)) * n
 
     def dotted_vline(self, x, y0, y1, rgb, on=1, off=2):
+        """1 px wide, dashes of `on` px every on+off px from y0 to y1 inclusive."""
+        if not 0 <= x < self.width:
+            return
+        y0, y1 = max(0, y0), min(self.height - 1, y1)
+        rows, px, i = self.rows, bytes(rgb), x * 3
         for y in range(y0, y1 + 1, on + off):
-            self.fill(x, y, x + 1, min(y + on, y1 + 1), rgb)
+            for yy in range(y, min(y + on, y1 + 1)):
+                rows[yy][i:i + 3] = px
 
     def polygon(self, points, rgb):
-        """Filled polygon (scanline, even-odd); points [(x, y), ...] as floats or ints."""
-        if len(points) < 3:
-            return
-        ys = [p[1] for p in points]
-        y0, y1 = max(0, int(min(ys))), min(self.height - 1, int(max(ys)) + 1)
+        """Filled polygon (scanline, even-odd); points [(x, y), ...] as floats or ints.
+        Self-intersecting outlines (a curve crossing its base line) fill both lobes."""
+        edges = []
         n = len(points)
+        for i in range(n):
+            (ax, ay), (bx, by) = points[i], points[(i + 1) % n]
+            if ay != by:
+                if ay > by:
+                    ax, ay, bx, by = bx, by, ax, ay
+                edges.append((ay, by, ax, (bx - ax) / float(by - ay)))
+        if len(edges) < 2:
+            return
+        y0 = max(0, int(min(e[0] for e in edges)))
+        y1 = min(self.height - 1, int(max(e[1] for e in edges)) + 1)
+        rows, width, px = self.rows, self.width, bytes(rgb)
         for y in range(y0, y1 + 1):
             yc = y + 0.5
-            xs = []
-            for i in range(n):
-                (ax, ay), (bx, by) = points[i], points[(i + 1) % n]
-                if (ay <= yc < by) or (by <= yc < ay):
-                    xs.append(ax + (yc - ay) * (bx - ax) / (by - ay))
-            xs.sort()
+            xs = sorted(ax + (yc - ay) * slope for ay, by, ax, slope in edges if ay <= yc < by)
+            row = rows[y]
             for i in range(0, len(xs) - 1, 2):
-                self.fill(int(round(xs[i])), y, int(round(xs[i + 1])), y + 1, rgb)
+                xa, xb = max(0, int(round(xs[i]))), min(width, int(round(xs[i + 1])))
+                if xa < xb:
+                    row[xa * 3:xb * 3] = px * (xb - xa)
 
     def area(self, xs, ys, base_y, rgb):
-        """Fill between the polyline (xs, ys) and the horizontal line base_y, column by column."""
-        for i in range(len(xs) - 1):
-            xa, xb = int(round(xs[i])), int(round(xs[i + 1]))
-            if xb <= xa:
-                continue
-            for x in range(xa, xb):
-                y = ys[i] + (ys[i + 1] - ys[i]) * (x - xs[i]) / (xs[i + 1] - xs[i])
-                self.fill(x, int(round(min(y, base_y))), x + 1, int(round(max(y, base_y))), rgb)
+        """Fill between the polyline (xs, ys) and the horizontal line base_y."""
+        if len(xs) > 1:
+            self.polygon(list(zip(xs, ys)) + [(xs[-1], base_y), (xs[0], base_y)], rgb)
 
     def band(self, xs, ys_low, ys_high, rgb):
         """Fill between two polylines sharing xs."""
-        for i in range(len(xs) - 1):
-            xa, xb = int(round(xs[i])), int(round(xs[i + 1]))
-            if xb <= xa:
-                continue
-            for x in range(xa, xb):
-                t = (x - xs[i]) / (xs[i + 1] - xs[i])
-                lo = ys_low[i] + (ys_low[i + 1] - ys_low[i]) * t
-                hi = ys_high[i] + (ys_high[i + 1] - ys_high[i]) * t
-                self.fill(x, int(round(min(lo, hi))), x + 1, int(round(max(lo, hi))) + 1, rgb)
+        if len(xs) > 1:
+            self.polygon(list(zip(xs, ys_low)) + list(zip(reversed(xs), reversed(ys_high))), rgb)
 
     def disc(self, cx, cy, r, rgb, outline=None):
         cx, cy = int(round(cx)), int(round(cy))
         if outline:
             self.disc(cx, cy, r + 1, outline)
-        r2 = r * r + r * 0.5
-        for dy in range(-r, r + 1):
-            half = int((r2 - dy * dy) ** 0.5)
-            self.fill(cx - half, cy + dy, cx + half + 1, cy + dy + 1, rgb)
+        rgb = tuple(rgb)
+        spans = _discs.get((r, rgb))
+        if spans is None:
+            r2, px = r * r + r * 0.5, bytes(rgb)
+            spans = _discs[(r, rgb)] = [(dy, half, px * (2 * half + 1))
+                                        for dy, half in ((dy, int((r2 - dy * dy) ** 0.5)) for dy in range(-r, r + 1))]
+        if r <= cx < self.width - r and r <= cy < self.height - r:
+            rows = self.rows
+            for dy, half, px in spans:
+                rows[cy + dy][(cx - half) * 3:(cx + half + 1) * 3] = px
+        else:
+            for dy, half, _px in spans:
+                self.fill(cx - half, cy + dy, cx + half + 1, cy + dy + 1, rgb)
 
     # --- lines -----------------------------------------------------------------
     def line(self, x0, y0, x1, y1, rgb, width=1, dash=None):
-        """Bresenham line; width in pixels; dash=(on, off) in steps."""
-        x0, y0, x1, y1 = int(round(x0)), int(round(y0)), int(round(x1)), int(round(y1))
-        dx, dy = abs(x1 - x0), -abs(y1 - y0)
-        sx, sy = (1 if x0 < x1 else -1), (1 if y0 < y1 else -1)
-        err = dx + dy
+        """Line of `width` px (a width x width square around every pixel of the
+        1 px line); dash=(on, off) in pixels along the longer axis."""
+        self._solid(int(round(x0)), int(round(y0)), int(round(x1)), int(round(y1)), rgb, width, dash)
+
+    def _solid(self, x0, y0, x1, y1, rgb, width, dash=None):
+        """Line as one rectangle per run: per row when shallow, per column when steep.
+        The union of the pixel squares along a run is exactly that rectangle."""
         half = width // 2
-        step = 0
-        px = bytes(rgb) * width
-        rows, w, h = self.rows, self.width, self.height
-        while True:
-            if dash is None or step % (dash[0] + dash[1]) < dash[0]:
-                if width == 1:
-                    if 0 <= x0 < w and 0 <= y0 < h:
-                        rows[y0][x0 * 3:x0 * 3 + 3] = px
+        adx, ady = abs(x1 - x0), abs(y1 - y0)
+        steep = ady > adx
+        if steep:
+            a0, b0, a1, b1, n, m = y0, x0, y1, x1, ady, adx
+        else:
+            a0, b0, a1, b1, n, m = x0, y0, x1, y1, adx, ady
+        sa, sb = (1 if a0 <= a1 else -1), (1 if b0 <= b1 else -1)
+        fill = self.fill
+        for k in range(m + 1):
+            if m:
+                lo = max(0, _ceil_div((2 * k - 1) * n, 2 * m))
+                hi = min(n, _ceil_div((2 * k + 1) * n, 2 * m) - 1)
+            else:
+                lo, hi = 0, n
+            if lo > hi:
+                continue
+            if dash:
+                period = dash[0] + dash[1]
+                s = lo - lo % period
+                pieces = []
+                while s <= hi:
+                    if max(lo, s) <= min(hi, s + dash[0] - 1):
+                        pieces.append((max(lo, s), min(hi, s + dash[0] - 1)))
+                    s += period
+            else:
+                pieces = ((lo, hi),)
+            c = b0 + sb * k - half
+            for lo, hi in pieces:
+                pa, pb = a0 + sa * lo, a0 + sa * hi
+                ra, rb = min(pa, pb) - half, max(pa, pb) - half + width
+                if steep:
+                    fill(c, ra, c + width, rb, rgb)
                 else:
-                    xa, xb = max(0, x0 - half), min(w, x0 - half + width)
-                    if xa < xb:
-                        seg = px[:(xb - xa) * 3]
-                        for y in range(max(0, y0 - half), min(h, y0 - half + width)):
-                            rows[y][xa * 3:xb * 3] = seg
-            if x0 == x1 and y0 == y1:
-                break
-            e2 = 2 * err
-            if e2 >= dy:
-                err += dy
-                x0 += sx
-            if e2 <= dx:
-                err += dx
-                y0 += sy
-            step += 1
+                    fill(ra, c, rb, c + width, rgb)
 
     def polyline(self, xs, ys, rgb, width=1, dash=None):
         for i in range(len(xs) - 1):
@@ -208,11 +289,24 @@ class Canvas:
             y += (fnt.ascent - fnt.descent) // 2
         elif valign == "bottom":
             y -= fnt.descent
-        blend = self.blend
+        rgb = tuple(rgb)
+        rows, width, height, blend = self.rows, self.width, self.height, self.blend
         for ch in text:
+            left, top, w, h, adv, _bits = fnt.glyph(ch)
+            gx, gy = x + left, y - top
+            if w and h and 0 <= gx and gx + w <= width and 0 <= gy and gy + h <= height:
+                # glyph box inside the canvas: on a uniform background paste cached rows
+                i0, i1 = gx * 3, (gx + w) * 3
+                bg = rows[gy][i0:i0 + 3]
+                plain = bytes(bg) * w
+                if all(rows[gy + r][i0:i1] == plain for r in range(h)):
+                    for r, line in enumerate(fnt.rendered(ch, rgb, tuple(bg))):
+                        rows[gy + r][i0:i1] = line
+                    x += adv
+                    continue
             for dx, dy, a in fnt.pixels(ch):
                 blend(x + dx, y + dy, rgb, a)
-            x += fnt.glyph(ch)[4]
+            x += adv
 
     def vtext(self, x, y, text, fnt, rgb, align="center"):
         """Text rotated 90 degrees counter-clockwise (reads bottom to top); (x, y) is the

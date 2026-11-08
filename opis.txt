@@ -55,6 +55,10 @@ Państwowego Rejestru Nazw Geograficznych (GUGiK).
 
 Historia zmian:
 
+2026.11.08
+- rysowanie meteogramu kilka razy szybsze: na dekoderach MIPS 750 MHz
+  (np. Zgemma H3) z 17 s spadło do ok. 4 s, wygląd bez zmian
+
 2026.11.04
 - skórki WQHD (2560x1440, openATV 8.1): meteogram rysowany 1:1, nie
   skalowany z FullHD
