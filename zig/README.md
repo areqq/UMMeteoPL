@@ -21,9 +21,15 @@ Na sukces wypisuje jedną linię: `ok 1590x990 run=<unix> start=<unix> steps=60 
 export PATH=/home/q/zig-x86_64-linux-0.17.1:$PATH
 zig build                                                   # natywnie, ReleaseFast
 zig build test
-zig build -Dtarget=mipsel-linux-musl -Dcpu=mips32 --prefix zig-out/mipsel          # Zgemma H3 (BCM7362)
-zig build -Dtarget=arm-linux-musleabihf -Dcpu=cortex_a15 --prefix zig-out/arm       # Uno 4K SE
+zig build -Dtarget=mipsel-linux-musl -Dcpu=mips32 --prefix zig-out/mipsel              # Zgemma H3 (BCM7362)
+zig build -Dtarget=arm-linux-musleabihf -Dcpu=cortex_a7-neon-d32 --prefix zig-out/arm-a7  # każdy ARMv7 (Zgemma H8.2H: A7 bez NEON, 16 rej. D)
+zig build -Dtarget=arm-linux-musleabihf -Dcpu=cortex_a15 --prefix zig-out/arm           # Uno 4K SE (NEON); na A7 bez NEON = SIGILL
 ```
+
+Dla ARM-a bezpieczny jest wariant `cortex_a7-neon-d32`: samo `-neon` nie wystarcza,
+bo kompilator dalej używa rejestrów D16–D31, a Zgemma H8.2H (Hi3716MV430) ich nie ma
+(sprawdzone 2026-11-08: `cortex_a7-neon` ginie z SIGILL od razu po starcie, `-neon-d32`
+działa). MIPS: `mips32`, nie r2.
 
 `src/glyphs.bin`, `src/coords.tsv` i `src/fixtures` to dowiązania do plików wtyczki
 (`@embedFile` nie sięga poza katalog modułu). Katalog `zig/` nie trafia do paczki
@@ -41,18 +47,21 @@ wtyczki (`scripts/publish.sh` go wyklucza).
 | `src/timeutil.zig` | kalendarz UTC, czas polski (reguła UE), wschód/zachód słońca, D°M'S" |
 | `src/main.zig` | CLI, strażnik limitu czasu (wątek + `Io.sleep` + `exit 3`) |
 
-## Zmierzone (Zgemma H3, MIPS 750 MHz, skala 1,5)
+## Zmierzone (skala 1,5)
 
-| etap | Python 26.11.08 | Zig |
-|---|---|---|
-| czcionki | — (import) | 32 ms |
-| pakiet CA (120 certów) | — | 19–58 ms |
-| lista przebiegów (TLS + GET) | — | ~390 ms |
-| prognoza (POST) | — | ~70 ms |
-| rysowanie | 3,5–4 s | 86–91 ms |
-| PNG bez kompresji (4,7 MB) | 0,5 s (zlib 3) | 240 ms |
-| PNG deflate poziom 1 / 4 / 6 | — | 1,0 / 1,1 / 1,5 s |
-| całość z pobraniem | ~5 s | 0,9 s |
+| etap | Python 26.11.08, Zgemma H3 | Zig, Zgemma H3 (MIPS 750 MHz) | Zig, Zgemma H8.2H (Cortex-A7) |
+|---|---|---|---|
+| czcionki | — (import) | 32 ms | 14 ms |
+| pakiet CA (120 certów) | — | 19–58 ms | 9 ms |
+| lista przebiegów (TLS + GET) | — | ~390 ms | ~270 ms |
+| prognoza (POST) | — | ~70 ms | ~60 ms |
+| rysowanie | 3,5–4 s | 86–91 ms | 29 ms |
+| PNG bez kompresji (4,7 MB) | 0,5 s (zlib 3) | 240 ms | 110 ms |
+| PNG deflate poziom 1 / 4 / 6 | — | 1,0 / 1,1 / 1,5 s | — |
+| całość z pobraniem | ~5 s | 0,9 s | 0,5 s |
+
+Oba dekodery mają jądro bez `statx` (4.10 i 4.4) — ręczne wczytanie pakietu CA działa
+na obu. Na H8.2H (skórka HD, skala 1) rysowanie 18 ms, PNG 51 ms.
 
 ReleaseSmall (1,4 MB zamiast 2,5 MB) rysuje 1,6× wolniej, kompresuje 2× wolniej —
 zostaje ReleaseFast. Suma SHA-256 pikseli na dekoderze = na PC = Python.

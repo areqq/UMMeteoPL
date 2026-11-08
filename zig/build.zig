@@ -2,7 +2,8 @@ const std = @import("std");
 
 // zig build                                              native, ReleaseFast
 // zig build -Dtarget=mipsel-linux-musl -Dcpu=mips32      Zgemma H3 (BCM7362, o32, little-endian)
-// zig build -Dtarget=arm-linux-musleabihf -Dcpu=cortex_a15   Uno 4K SE
+// zig build -Dtarget=arm-linux-musleabihf -Dcpu=cortex_a7-neon-d32   every ARMv7 box (Zgemma H8.2H: A7, no NEON, D16)
+// zig build -Dtarget=arm-linux-musleabihf -Dcpu=cortex_a15           Uno 4K SE (NEON); SIGILL on an A7 without NEON
 // zig build test
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
