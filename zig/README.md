@@ -1,10 +1,10 @@
 # ummeteo — meteogram w czystym Zigu (0.17.1)
 
-Port `meteogram.py` + `chart.py` + `render.py` do Ziga, na razie **obok** wtyczki:
-samodzielna, statyczna binarka bez zależności, która pobiera prognozę UM z API
-app.meteo.pl i zapisuje meteogram jako PNG. Rysuje **dokładnie te same piksele**
-co Python (test `chart pixels equal the python renderer` porównuje SHA-256 surowych
-pikseli z wynikiem `chart.Chart(...).draw()` na tej samej próbce, w skali 1,0 i 1,5).
+Część wtyczki, która pobiera prognozę UM z API app.meteo.pl i rysuje meteogram do PNG:
+samodzielna, statyczna binarka bez zależności, uruchamiana przez `renderer.py`. Powstała
+jako port dawnych `meteogram.py` + `chart.py` + `render.py` i rysuje **dokładnie te same
+piksele** (test `chart pixels equal the python renderer` porównuje SHA-256 surowych pikseli
+z referencją wygenerowaną tamtym kodem na tej samej próbce, w skali 1,0 i 1,5).
 
 ```
 ummeteo --id 2119 [--scale 1.5] [--out meteogram.png]
@@ -31,9 +31,10 @@ bo kompilator dalej używa rejestrów D16–D31, a Zgemma H8.2H (Hi3716MV430) ic
 (sprawdzone 2026-11-08: `cortex_a7-neon` ginie z SIGILL od razu po starcie, `-neon-d32`
 działa). MIPS: `mips32`, nie r2.
 
-`src/glyphs.bin`, `src/coords.tsv` i `src/fixtures` to dowiązania do plików wtyczki
-(`@embedFile` nie sięga poza katalog modułu). Katalog `zig/` nie trafia do paczki
-wtyczki (`scripts/publish.sh` go wyklucza).
+`zig build release` buduje cztery binarki do `zig-out/release/<arch>/ummeteo`; `scripts/publish.sh`
+wkłada je do paczki jako `bin/ummeteo-<arch>` (źródła z `zig/` do paczki nie trafiają), a `install.sh`
+zostawia na dekoderze tylko tę dla jego procesora. `src/glyphs.bin` i `src/coords.tsv` są
+wkompilowane (`@embedFile`); odtwarzają je `tools/build_font.py` i `tools/build_coords.py`.
 
 ## Pliki
 
@@ -66,8 +67,9 @@ na obu. Na H8.2H (skórka HD, skala 1) rysowanie 18 ms, PNG 51 ms.
 ReleaseSmall (1,4 MB zamiast 2,5 MB) rysuje 1,6× wolniej, kompresuje 2× wolniej —
 zostaje ReleaseFast. Suma SHA-256 pikseli na dekoderze = na PC = Python.
 
-## Integracja z wtyczką (jeszcze nie)
+## Integracja z wtyczką
 
-Wtyczka nadal rysuje w Pythonie. Plan: Meteo.py woła binarkę pasującą do
-architektury (`--id`, `--scale`, `--out` w katalogu tymczasowym), a gdy jej nie ma
-albo zwróci błąd, wraca do Pythona.
+`renderer.py` wybiera `bin/ummeteo-<arch>` po `platform.machine()` (mips + little-endian →
+mipsel, arm* → arm, aarch64, x86_64), woła `--id ID --scale S --out /tmp/ummeteo/ID.png
+--timeout 40` w wątku roboczym i czyta linię `ok ...`; przy błędzie pokazuje ostatnią linię
+stderr (komunikaty są po polsku). Nie ma już ścieżki awaryjnej w Pythonie.

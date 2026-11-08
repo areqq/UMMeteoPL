@@ -6,13 +6,24 @@ teryt.tsv maps meteo.pl location ids to those codes."""
 import json
 import os
 from datetime import datetime
-
-from . import meteogram
+from urllib.request import Request, urlopen
 
 URL = "https://danepubliczne.imgw.pl/api/data/warningsmeteo"
+TIMEOUT = 15
 NO_WARNINGS = "Brak ostrzeżeń meteorologicznych"
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"     # Polish local time, as on meteo.imgw.pl
 TERYT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "teryt.tsv")
+
+
+class ParseError(Exception):
+    pass
+
+
+def http_get(url, timeout=TIMEOUT):
+    """Blocking GET -> bytes. Run it off the reactor thread."""
+    req = Request(url, headers={"User-Agent": "UMMeteoPL (enigma2 plugin)"})
+    with urlopen(req, timeout=timeout) as r:
+        return r.read()
 
 
 class Alert:
@@ -49,7 +60,7 @@ def when(moment, now):
 
 
 def parse(raw):
-    """API response (bytes) -> [Alert]. Raises meteogram.ParseError."""
+    """API response (bytes) -> [Alert]. Raises ParseError."""
     try:
         data = json.loads(raw.decode("utf-8"))
         if data == {"message": NO_WARNINGS}:
@@ -58,7 +69,7 @@ def parse(raw):
             raise ValueError(f"unexpected response {data!r:.200}")
         return [Alert(item) for item in data]
     except (ValueError, KeyError, TypeError) as e:
-        raise meteogram.ParseError(f"Nieczytelne ostrzeżenia IMGW: {e}")
+        raise ParseError(f"Nieczytelne ostrzeżenia IMGW: {e}")
 
 
 def for_county(warnings, county, now):
@@ -94,6 +105,6 @@ def load_counties(path=TERYT_FILE):
     return counties
 
 
-def fetch(get=meteogram.http_get):
+def fetch(get=http_get):
     """Blocking: all current warnings."""
     return parse(get(URL))

@@ -86,14 +86,16 @@ piętrach i mgła. Noc jest zaznaczona szarymi pasmami, u góry czas lokalny, na
   <li>przełączanie miejscowości strzałkami, CH+/CH−, klawiszami 1–9 albo z listy; pobrane meteogramy są pamiętane,
       więc powrót jest natychmiastowy</li>
   <li>skórka skalowana do rozdzielczości (HD, FullHD, 4K); ustawienia rysuje skórka dekodera, więc wyglądają jak systemowe</li>
-  <li>tylko Python 3 i enigma: bez <code>requests</code>, PIL czy ImageMagick</li>
+  <li>pobieraniem i rysowaniem zajmuje się mały program w Zigu (statyczna binarka dla MIPS, ARM, ARM64 i x86-64),
+      więc nawet na dekoderze z MIPS-em 750 MHz wykres jest gotowy w ułamku sekundy; ekrany to Python 3 enigmy,
+      bez <code>requests</code>, PIL czy ImageMagick</li>
 </ul>
 
 <h2 id="ostrzezenia">Ostrzeżenia IMGW</h2>
 <p>Gdy dla powiatu wybranej miejscowości obowiązuje albo jest zapowiedziane ostrzeżenie, pasek w stopce
 pokazuje najpoważniejsze z nich w kolorze stopnia (żółty, pomarańczowy, czerwony). INFO otwiera pełną treść wszystkich.</p>
 <figure>
-  <img src="screenshots/ostrzezenie.png" alt="Pasek ostrzeżenia w stopce" width="960" height="755" loading="lazy">
+  <img src="screenshots/ostrzezenie.png" alt="Pasek ostrzeżenia w stopce" width="960" height="648" loading="lazy">
 </figure>
 <figure>
   <img src="screenshots/ostrzezenie-info.png" alt="Szczegóły ostrzeżenia" width="960" height="540" loading="lazy">
@@ -144,7 +146,7 @@ ZIELONY zapisuje. EXIT z niezapisanymi zmianami pyta, co zrobić.</p>
 <ul>
   <li><strong>Prognoza:</strong> meteo.pl (ICM UW), model UM 4 km, 60 godzin. Od października 2026 stary serwis
       old.meteo.pl z gotowymi obrazkami nie działa; wtyczka pobiera liczby z tego samego źródła, z którego korzysta
-      aplikacja app.meteo.pl, i rysuje meteogram sama.</li>
+      aplikacja app.meteo.pl, i rysuje meteogram sama (program <code>ummeteo</code> w Zigu, w katalogu wtyczki).</li>
   <li><strong>Współrzędne miejscowości:</strong> tabela id meteo.pl → szerokość i długość geograficzna, zbudowana
       z Państwowego Rejestru Nazw Geograficznych PRNG (GUGiK).</li>
   <li><strong>Ostrzeżenia:</strong> publiczne API IMGW-PIB

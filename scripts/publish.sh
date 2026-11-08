@@ -1,7 +1,8 @@
 #!/bin/sh
 # Publikuje wtyczkę na serwerze aktualizacji (FTP, katalog widoczny pod $UMMETEO_HTTP):
 #
-#   UMMeteoPL.tar.gz          git archive HEAD bez docs/tests/tools/scripts/zig
+#   UMMeteoPL.tar.gz          git archive HEAD bez docs/tests/tools/scripts/zig + bin/ummeteo-<arch>
+#                             (zig build release; $ZIG albo zig z PATH)
 #   UMMeteoPL.tar.gz.sha256   sprawdzana przez install.sh
 #   install.sh                jednolinijkówka, uruchamiana też przez update.py co 8 h
 #   index.html, screenshots/  strona z dokumentacją (docs/index.html)
@@ -48,8 +49,16 @@ chmod 600 "$STAGE/netrc"
 put() { curl -fsS --netrc-file "$STAGE/netrc" --ftp-create-dirs -T "$STAGE/out/$1" "$base/$1"; echo "-> $1" >&2; }
 
 mkdir "$STAGE/out"
-git archive --format=tar.gz --prefix=UMMeteoPL/ -o "$STAGE/out/UMMeteoPL.tar.gz" HEAD -- . \
-    ':!docs' ':!tests' ':!tools' ':!scripts' ':!zig' ':!.gitignore' ':!install.sh'
+ZIG="${ZIG:-zig}"
+command -v "$ZIG" >/dev/null 2>&1 || { echo "brak kompilatora zig (ustaw ZIG w scripts/publish.local)" >&2; exit 1; }
+(cd zig && "$ZIG" build release) || { echo "zig build release nie powiódł się" >&2; exit 1; }
+mkdir -p "$STAGE/tree/UMMeteoPL/bin"
+git archive --format=tar --prefix=UMMeteoPL/ HEAD -- . ':!docs' ':!tests' ':!tools' ':!scripts' ':!zig' ':!.gitignore' ':!install.sh' \
+    | tar -xf - -C "$STAGE/tree"
+for arch in mipsel arm aarch64 x86_64; do
+    cp "zig/zig-out/release/$arch/ummeteo" "$STAGE/tree/UMMeteoPL/bin/ummeteo-$arch"
+done
+tar -czf "$STAGE/out/UMMeteoPL.tar.gz" -C "$STAGE/tree" UMMeteoPL
 (cd "$STAGE/out" && sha256sum UMMeteoPL.tar.gz > UMMeteoPL.tar.gz.sha256)
 git show HEAD:install.sh > "$STAGE/out/install.sh"
 printf '%s\ninstall.sh %s\n' "$VERSION" "$(sha256sum "$STAGE/out/install.sh" | cut -d' ' -f1)" > "$STAGE/out/version"

@@ -4,3 +4,4 @@ __pycache__/
 scripts/publish.local
 zig/zig-out/
 zig/.zig-cache/
+bin/

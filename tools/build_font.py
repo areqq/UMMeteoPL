@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild glyphs.bin: DejaVu Sans glyph bitmaps for render.py (the decoder has no PIL).
+"""Rebuild zig/src/glyphs.bin: DejaVu Sans glyph bitmaps for zig/src/render.zig.
 
 Format (zlib-compressed): b"UMF1", then per font: ">BbbH" pixel size, ascent, descent,
 glyph count; then per glyph: ">HbbBBB" codepoint, left, top (from the baseline, up),
@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-# render.py: base sizes at 720p times the chart scales (1, 1.5, 2, 3)
+# render.zig: base sizes at 720p times the chart scales (1, 1.5, 2, 3)
 SIZES = sorted({round(base * scale) for base in (9, 11, 13) for scale in (1, 1.5, 2, 3)})
 CHARS = "".join(chr(c) for c in range(32, 127)) + "ąćęłńóśźżĄĆĘŁŃÓŚŹŻ°·×–"
 
@@ -45,7 +45,7 @@ def main():
             out.append(struct.pack(">HbbBBB", ord(ch), left, top, w, h, adv) + bits)
     raw = b"".join(out)
     data = zlib.compress(raw, 9)
-    with open(os.path.join(ROOT, "glyphs.bin"), "wb") as f:
+    with open(os.path.join(ROOT, "zig", "src", "glyphs.bin"), "wb") as f:
         f.write(data)
     print(f"sizes {SIZES}, {len(CHARS)} glyphs each, {len(raw)} -> {len(data)} bytes", file=sys.stderr)
 

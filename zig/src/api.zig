@@ -57,7 +57,7 @@ pub const Client = struct {
             },
         });
         if (res.status != .ok) {
-            std.debug.print("ummeteo: {s} -> HTTP {d}\n", .{ url, @backingInt(res.status) });
+            std.debug.print("ummeteo: meteo.pl odpowiada błędem {d}\n", .{@backingInt(res.status)});
             return error.HttpStatus;
         }
         return aw.toOwnedSlice();

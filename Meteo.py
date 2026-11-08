@@ -2,8 +2,6 @@
 import os
 import time
 from datetime import datetime
-from socket import timeout as SocketTimeout
-from urllib.error import HTTPError, URLError
 
 from enigma import BT_HALIGN_CENTER, BT_VALIGN_BOTTOM, ePicLoad, gRGB, getDesktop
 from twisted.internet.threads import deferToThread
@@ -15,7 +13,7 @@ from Screens.ChoiceBox import ChoiceBox
 from Screens.Screen import Screen
 from Screens.TextBox import TextBox
 
-from . import alerts, chart, meteogram, settings, storage
+from . import alerts, renderer, settings, storage
 from .version import VERSION
 TMP_DIR = "/tmp/ummeteo"
 ALERTS_TTL = 10 * 60
@@ -23,9 +21,8 @@ ALERTS_TTL = 10 * 60
 ALERT_COLOURS = {1: (0xf2c200, 0x202020), 2: (0xff8c00, 0x202020), 3: (0xd02020, 0xffffff)}
 
 SCALE = getDesktop(0).size().height() / 720.0
-# the meteogram is drawn in Python (chart.py): 1:1 for HD, FullHD and WQHD (2560x1440, scale 2);
-# at 4K a 1:1 picture takes 7.5 s on an ARM decoder (Uno 4K SE), so it is drawn at scale 2
-# and scaled up by ePicLoad
+# the meteogram is drawn by bin/ummeteo (zig/): 1:1 for HD, FullHD and WQHD (2560x1440, scale 2);
+# at 4K it is drawn at scale 2 (an 8 MB PNG in /tmp instead of 19 MB) and scaled up by ePicLoad
 RENDER_SCALE = min(SCALE, 2.0)
 
 
@@ -50,7 +47,7 @@ RED, GREEN, YELLOW, BLUE = "#00e04040", "#0030b030", "#00e0c020", "#003070e0"
 
 
 def build_skin():
-    header, chart_w, chart_h = 26, chart.WIDTH, chart.HEIGHT
+    header, chart_w, chart_h = 26, renderer.WIDTH, renderer.HEIGHT
     width, footer_y = chart_w, header + chart_h
     return f"""
     <screen name="UMMeteoPL" position="center,center" size="{s(width)},{s(footer_y + 30)}" flags="wfNoBorder" backgroundColor="#00ffffff" title="UM Meteo.pl">
@@ -65,12 +62,8 @@ def build_skin():
 
 def describe_error(failure):
     err = failure.value
-    if isinstance(err, meteogram.ParseError):
+    if isinstance(err, renderer.RenderError):
         return str(err)
-    if isinstance(err, HTTPError):
-        return f"meteo.pl odpowiada błędem {err.code}"
-    if isinstance(err, (URLError, SocketTimeout, ConnectionError)):
-        return "Brak połączenia z meteo.pl"
     print("[UMMeteo] fetch failed:", failure.getTraceback())
     return f"Błąd: {err}"
 
@@ -107,7 +100,7 @@ class Meteo(Screen):
         self.favourites = []
         self.index = 0
         self.seq = 0            # newer request invalidates older callbacks
-        self.cache = {}         # id -> (time, Forecast, png path, (w, h))
+        self.cache = {}         # id -> (time, run text, png path, (w, h))
         self.alerts = None      # IMGW warnings, None = not known
         self.alerts_time = 0
         self.counties = alerts.load_counties()
@@ -134,7 +127,7 @@ class Meteo(Screen):
             self.picload.PictureData.get().remove(self.decoded)
         except ValueError:
             pass
-        for _t, _f, path, _size in self.cache.values():
+        for _t, _run, path, _size in self.cache.values():
             try:
                 os.unlink(path)
             except OSError:
@@ -196,12 +189,9 @@ class Meteo(Screen):
     # --- worker thread -----------------------------------------------------
     @staticmethod
     def download(location_id):
-        forecast = meteogram.fetch(location_id)
-        png, size = chart.render_png(forecast, RENDER_SCALE)
         path = f"{TMP_DIR}/{location_id}.png"
-        with open(path, "wb") as f:
-            f.write(png)
-        return time.time(), forecast, path, size
+        run, size = renderer.render(location_id, RENDER_SCALE, path)
+        return time.time(), run, path, size
 
     # --- reactor thread ----------------------------------------------------
     def ready(self, seq, loc_id, result):
@@ -210,8 +200,8 @@ class Meteo(Screen):
         self.cache[loc_id] = result
         if seq != self.seq:
             return
-        _t, forecast, path, size = result
-        self.set_status(f"{self.position()}   prognoza z {forecast.run}")
+        _t, run, path, size = result
+        self.set_status(f"{self.position()}   prognoza z {run}")
         self.show_picture(path, size)
 
     def failed(self, seq, failure):

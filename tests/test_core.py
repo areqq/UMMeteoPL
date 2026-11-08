@@ -8,6 +8,7 @@ import sys
 import tempfile
 import types
 import unittest
+import unittest.mock
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -16,207 +17,64 @@ FIX = ROOT / "tests" / "fixtures"
 sys.path.insert(0, str(ROOT.parent))
 PKG = ROOT.name
 
-meteogram = __import__(f"{PKG}.meteogram", fromlist=["x"])
+renderer = __import__(f"{PKG}.renderer", fromlist=["x"])
 storage = __import__(f"{PKG}.storage", fromlist=["x"])
 alerts = __import__(f"{PKG}.alerts", fromlist=["x"])
 update = __import__(f"{PKG}.update", fromlist=["x"])
 
 
-chart = __import__(f"{PKG}.chart", fromlist=["x"])
-render = __import__(f"{PKG}.render", fromlist=["x"])
 
-RUN = 1793448000        # 31.10.2026 12 UTC, the run of the Warszawa fixture
+class RendererTest(unittest.TestCase):
+    """bin/ummeteo-<arch> (zig/) fetches and draws; renderer.py only runs it."""
 
+    def test_architectures(self):
+        self.assertEqual(renderer.arch("mips", "little"), "mipsel")          # Zgemma H3 (BCM7362)
+        self.assertIsNone(renderer.arch("mips", "big"))                      # old DM boxes: no build
+        self.assertEqual(renderer.arch("armv7l", "little"), "arm")           # Zgemma H8.2H, Uno 4K SE
+        self.assertEqual(renderer.arch("aarch64", "little"), "aarch64")
+        self.assertEqual(renderer.arch("x86_64", "little"), "x86_64")        # enigma2 in a PC container
+        self.assertIsNone(renderer.arch("sh4", "little"))
+        self.assertIn(renderer.arch(), ("x86_64", "aarch64", "arm", "mipsel", None))
 
-def forecast():
-    raw = (FIX / "um4_60_warszawa_2026-10-31.json").read_bytes()
-    return meteogram.parse_forecast(raw, RUN, 52.2298, 21.0117)
+    def test_result_line(self):
+        run, size = renderer.parse_result("ok 1590x990 run=1793448000 start=1793451600 steps=60 out=/tmp/x.png\n")
+        self.assertEqual((run, size), ("31.10.2026 12 UTC", (1590, 990)))
+        for bad in ("", "error", "ok 1590x990 steps=60"):
+            with self.assertRaises(renderer.RenderError):
+                renderer.parse_result(bad)
 
-
-class ApiTest(unittest.TestCase):
-    """Real responses of devmgramapi.meteo.pl captured 2026-10-31."""
-
-    def test_available_newest_first(self):
-        runs = meteogram.parse_available((FIX / "available_2026-10-31.json").read_bytes())
-        self.assertEqual(runs[0], RUN)
-        self.assertEqual(runs, sorted(runs, reverse=True))
-        with self.assertRaises(meteogram.ParseError):
-            meteogram.parse_available(b"<html>")
-
-    def test_forecast(self):
-        f = forecast()
-        self.assertEqual((f.steps, f.interval, f.start), (60, 3600, RUN + 3600))
-        self.assertEqual((f.row, f.col), (212, 252))
-        self.assertEqual(f.run, "31.10.2026 12 UTC")
-        self.assertEqual(set(f.series), set(meteogram.SERIES))
-        self.assertAlmostEqual(f["airtmp_point"][0], 9.475)
-        # the API marks 'no cloud base' with a huge negative number
-        self.assertTrue(all(v is None or v >= 0 for v in f["cldbse79"]))
-        self.assertIn(None, f["cldbse79"])
-
-    def test_unknown_shape_is_an_error(self):
-        for raw in (b"{}", b'{"data": {}}', b"<html>", b'{"data": {"airtmp_point": {"data": []}}}'):
-            with self.assertRaises(meteogram.ParseError):
-                meteogram.parse_forecast(raw, RUN, 52.0, 21.0)
-
-    def test_fetch_with_fake_transport(self):
+    def test_render_runs_the_binary(self):
         calls = []
 
-        def get(url):
-            calls.append(("GET", url))
-            return (FIX / "available_2026-10-31.json").read_bytes()
+        def run(cmd, **kwargs):
+            calls.append(cmd)
+            return types.SimpleNamespace(returncode=0, stdout="ok 1060x660 run=1793448000 start=1 steps=60 out=o.png\n", stderr="")
+        with unittest.mock.patch.object(renderer, "binary", lambda: "/usr/bin/true"):
+            run_text, size = renderer.render("2119", 1.0, "/tmp/o.png", run)
+        self.assertEqual((run_text, size), ("31.10.2026 12 UTC", (1060, 660)))
+        self.assertEqual(calls[0][1:7], ["--id", "2119", "--scale", "1", "--out", "/tmp/o.png"])
 
-        def post(url, body):
-            calls.append(("POST", url, json.loads(body)))
-            return (FIX / "um4_60_warszawa_2026-10-31.json").read_bytes()
-        f = meteogram.fetch("2727", get, post)
-        self.assertEqual(f.run_time, RUN)
-        self.assertEqual(calls[0], ("GET", meteogram.API + "/available"))
-        self.assertEqual(calls[1][1], meteogram.API + "/um4_60")
-        self.assertEqual(calls[1][2], {"point": {"lat": "52.2298", "lon": "21.0117"}, "date": RUN})
-        with self.assertRaisesRegex(meteogram.ParseError, "współrzędnych"):
-            meteogram.fetch("999999", get, post)
+        def failing(cmd, **kwargs):
+            return types.SimpleNamespace(returncode=1, stdout="", stderr="  czcionki: 1 ms\nummeteo: brak połączenia z meteo.pl (error.ConnectionRefused)\n")
+        with unittest.mock.patch.object(renderer, "binary", lambda: "/usr/bin/true"):
+            with self.assertRaisesRegex(renderer.RenderError, "^brak połączenia z meteo.pl"):
+                renderer.render("2119", 1.5, "/tmp/o.png", failing)
 
-    def test_fetch_falls_back_to_the_previous_run(self):
-        posts = []
-
-        def post(url, body):
-            posts.append(json.loads(body)["date"])
-            if len(posts) == 1:
-                raise meteogram.ParseError("not ready")
-            return (FIX / "um4_60_warszawa_2026-10-31.json").read_bytes()
-        f = meteogram.fetch("2727", lambda url: (FIX / "available_2026-10-31.json").read_bytes(), post)
-        self.assertEqual(posts, [RUN, RUN - 6 * 3600])
-        self.assertEqual(f.run_time, RUN - 6 * 3600)
+    def test_missing_binary_is_a_readable_error(self):
+        with unittest.mock.patch.object(renderer, "PLUGIN_DIR", "/nonexistent"):
+            with self.assertRaisesRegex(renderer.RenderError, "ummeteo"):
+                renderer.binary()
 
     def test_coords_cover_the_catalogue(self):
-        coords = meteogram.load_coords()
+        coords = {}
+        for line in (ROOT / "zig" / "src" / "coords.tsv").read_text(encoding="utf-8").splitlines():
+            parts = line.split()
+            if len(parts) == 3 and parts[0].isdigit():
+                coords[parts[0]] = (float(parts[1]), float(parts[2]))
         for label, woj in storage.VOIVODESHIPS:
             for loc in storage.towns(woj):
                 lat, lon = coords[loc.id]
                 self.assertTrue(49.0 <= lat <= 54.9 and 14.1 <= lon <= 24.2, str(loc))
-
-
-class ChartTest(unittest.TestCase):
-    def test_png_at_every_scale(self):
-        for scale, size in ((1.0, (1060, 660)), (1.5, (1590, 990)), (2.0, (2120, 1320)), (3.0, (3180, 1980))):
-            png, got = chart.render_png(forecast(), scale)
-            self.assertEqual(got, size)
-            self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
-            self.assertEqual(struct.unpack(">II", png[16:24]), size)
-
-    def test_missing_values_do_not_crash(self):
-        f = forecast()
-        for name in f.series:
-            f.series[name] = [None] * f.steps
-        chart.render_png(f, 1.0)
-        f = forecast()
-        f.series["pcpttl_max"] = [50.0] * f.steps     # over the scale
-        f.series["storm_max"] = [1.0] * f.steps
-        chart.render_png(f, 1.0)
-
-    def test_sun_and_local_time(self):
-        rise, sset = chart.sun_times(52.23, 21.01, RUN)
-        local_rise, local_set = chart.local(rise), chart.local(sset)
-        # Warszawa, 31.10.2026 (CET): sunrise 06:28, sunset 16:10 (timeanddate.com: 6:28 / 16:10)
-        self.assertEqual((local_rise.tm_hour, local_rise.tm_min), (6, 28))
-        self.assertEqual((local_set.tm_hour, local_set.tm_min), (16, 10))
-        self.assertEqual(chart.local_offset(RUN), 3600)
-        march = calendar.timegm((2026, 3, 29, 1, 0, 0))      # last Sunday of March 2026
-        self.assertEqual((chart.local_offset(march - 1), chart.local_offset(march)), (3600, 7200))
-        october = calendar.timegm((2026, 10, 25, 1, 0, 0))
-        self.assertEqual((chart.local_offset(october - 1), chart.local_offset(october)), (7200, 3600))
-
-    def test_fonts_and_canvas(self):
-        f = render.font(11)
-        self.assertEqual(f.size, 11)
-        self.assertGreater(f.width("Temperatura"), f.width("Temp"))
-        c = render.Canvas(20, 10)
-        c.fill(2, 2, 5, 4, (1, 2, 3))
-        self.assertEqual(bytes(c.rows[2][6:9]), b"\x01\x02\x03")
-        self.assertEqual(bytes(c.rows[4][6:9]), b"\xff\xff\xff")
-        c.text(0, 8, "Ab °ą", f, (0, 0, 0))
-        self.assertTrue(any(b != 255 for row in c.rows for b in row))
-        c.vtext(15, 9, "x", f, (0, 0, 0))
-        self.assertEqual(len(c.png()) > 50, True)
-
-    def test_placeholders_are_current(self):
-        for name in ("loading.png", "error.png"):
-            png = (ROOT / name).read_bytes()
-            self.assertEqual(struct.unpack(">II", png[16:24]), (1590, 990), name)
-
-
-class RenderTest(unittest.TestCase):
-    """The row-slice fast paths in render.py must draw what the per-pixel code drew."""
-
-    def test_text_fast_path_equals_blending(self):
-        f = render.font(16)
-        fast = render.Canvas(120, 30, (200, 220, 240))
-        fast.text(3, 20, "Wiatr 12 km/h", f, (10, 20, 30))
-        slow = render.Canvas(120, 30, (200, 220, 240))
-        x = 3
-        for ch in "Wiatr 12 km/h":
-            for dx, dy, a in f.pixels(ch):
-                slow.blend(x + dx, 20 + dy, (10, 20, 30), a)
-            x += f.glyph(ch)[4]
-        self.assertEqual(fast.rows, slow.rows)
-        self.assertTrue(any(b != 200 for b in fast.rows[15]))
-        # a glyph over a non-uniform background still blends pixel by pixel
-        fast.fill(0, 0, 120, 30, (255, 255, 255))
-        fast.fill(0, 0, 120, 15, (0, 0, 0))
-        fast.text(3, 20, "W", f, (255, 0, 0))
-        self.assertTrue(any(bytes(fast.rows[y][9:12]) not in (b"\x00\x00\x00", b"\xff\xff\xff") for y in range(30)))
-
-    def test_dotted_and_dashed_lines(self):
-        c = render.Canvas(30, 5)
-        c.dotted_hline(2, 20, 1, (1, 2, 3), 2, 4)
-        xs = [x for x in range(30) if bytes(c.rows[1][x * 3:x * 3 + 3]) == b"\x01\x02\x03"]
-        self.assertEqual(xs, [2, 3, 8, 9, 14, 15, 20])
-        c.dotted_vline(25, 0, 4, (1, 2, 3), 1, 2)
-        self.assertEqual([y for y in range(5) if c.rows[y][75] == 1], [0, 3])
-        c = render.Canvas(30, 5)
-        c.line(0, 2, 29, 2, (9, 9, 9), 1, dash=(3, 2))
-        xs = [x for x in range(30) if c.rows[2][x * 3] == 9]
-        self.assertEqual(xs, [x for x in range(30) if x % 5 < 3])
-        self.assertEqual(sum(1 for y in (1, 3) for b in c.rows[y] if b == 9), 0)
-
-    def test_lines_cover_bresenham_pixels(self):
-        for (x0, y0, x1, y1) in ((1, 1, 25, 9), (25, 9, 1, 1), (2, 20, 6, 1), (0, 0, 20, 0), (5, 0, 5, 20)):
-            c = render.Canvas(30, 24)
-            c.line(x0, y0, x1, y1, (0, 0, 0))
-            lit = {(x, y) for y in range(24) for x in range(30) if c.rows[y][x * 3] == 0}
-            steps = max(abs(x1 - x0), abs(y1 - y0))
-            self.assertEqual(len(lit), steps + 1, (x0, y0, x1, y1))
-            self.assertIn((x0, y0), lit)
-            self.assertIn((x1, y1), lit)
-            for x, y in lit:                       # 8-connected, one pixel per major-axis step
-                self.assertTrue(any((x + dx, y + dy) in lit for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy))
-        c = render.Canvas(30, 24)
-        c.line(2, 10, 27, 12, (0, 0, 0), 3)
-        self.assertEqual(sum(1 for b in c.rows[8] if b == 0) + sum(1 for b in c.rows[14] if b == 0), 0)
-        self.assertGreater(sum(1 for b in c.rows[11] if b == 0), 3 * 20)
-
-    def test_area_and_band_fill_columns(self):
-        c = render.Canvas(40, 20)
-        xs, ys = [5.0, 15.0, 25.0, 35.0], [15.0, 5.0, 10.0, 2.0]
-        c.area(xs, ys, 18, (0, 0, 0))
-        for x in (6, 10, 15, 20, 30, 34):
-            y_curve = ys[(x - 5) // 10] + (ys[(x - 5) // 10 + 1] - ys[(x - 5) // 10]) * ((x - 5) % 10) / 10.0
-            col = [c.rows[y][x * 3] for y in range(20)]
-            self.assertEqual(col[17], 0, x)                                 # row above the base line
-            self.assertEqual(col[18], 255, x)                               # the base line itself is not filled
-            self.assertEqual(col[int(y_curve + 2)], 0, x)
-            self.assertEqual(col[max(0, int(y_curve - 2))], 255, x)
-        self.assertEqual(c.rows[16][2 * 3], 255)                            # nothing left of xs[0]
-        c = render.Canvas(40, 20)
-        c.band([0.0, 39.0], [5.0, 5.0], [10.0, 10.0], (0, 0, 0))
-        self.assertEqual([y for y in range(20) if c.rows[y][60] == 0], [5, 6, 7, 8, 9])
-
-    def test_fonts_parse_lazily(self):
-        fonts = render._load_fonts()
-        self.assertEqual(len(fonts), 12)
-        self.assertEqual(render.font(13).glyph("A")[4], render.font(13).width("A"))
-        self.assertGreater(len(render.font(13)._glyphs), 100)
 
 
 class StorageTest(unittest.TestCase):
@@ -333,7 +191,7 @@ class AlertsTest(unittest.TestCase):
 
     def test_unknown_shape_is_an_error(self):
         for raw in (b'{"message": "Limit"}', b"<html>", b"[{}]"):
-            with self.assertRaises(alerts.meteogram.ParseError):
+            with self.assertRaises(alerts.ParseError):
                 alerts.parse(raw)
 
     def test_gdansk(self):

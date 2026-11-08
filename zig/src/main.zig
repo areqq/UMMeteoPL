@@ -165,9 +165,15 @@ pub fn main(init: std.process.Init) !void {
         defer client.deinit();
         if (opts.verbose) std.debug.print("  certyfikaty CA: {d}\n", .{client.certs});
         timer.lap("pakiet CA");
-        const avail_raw = try client.get(fc.api ++ "/available");
+        const avail_raw = client.get(fc.api ++ "/available") catch |e| {
+            std.debug.print("ummeteo: brak połączenia z meteo.pl ({t})\n", .{e});
+            std.process.exit(1);
+        };
         defer gpa.free(avail_raw);
-        const runs = try fc.parseAvailable(gpa, avail_raw);
+        const runs = fc.parseAvailable(gpa, avail_raw) catch |e| {
+            std.debug.print("ummeteo: meteo.pl: nieznana lista prognoz ({t})\n", .{e});
+            std.process.exit(1);
+        };
         defer gpa.free(runs);
         if (runs.len == 0) {
             std.debug.print("ummeteo: meteo.pl nie ma żadnej prognozy\n", .{});
@@ -194,7 +200,7 @@ pub fn main(init: std.process.Init) !void {
             break;
         }
         if (!got) {
-            std.debug.print("ummeteo: prognoza nieosiągalna ({t})\n", .{last_err});
+            std.debug.print("ummeteo: meteo.pl: nieznana odpowiedź ({t})\n", .{last_err});
             std.process.exit(1);
         }
         timer.lap("prognoza");

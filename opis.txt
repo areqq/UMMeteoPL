@@ -55,6 +55,13 @@ Państwowego Rejestru Nazw Geograficznych (GUGiK).
 
 Historia zmian:
 
+2026.11.09
+- meteogram pobiera i rysuje program ummeteo napisany w Zigu (statyczna
+  binarka bez zależności, w katalogu bin/ wtyczki, dla MIPS, ARM, ARM64
+  i x86-64), a nie Python: na Zgemmie H3 wykres jest gotowy po 0,9 s
+  zamiast 5 s, na Zgemmie H8.2H po 0,5 s; obraz jest identyczny
+- w Pythonie zostały ekrany, ulubione, ustawienia i ostrzeżenia IMGW
+
 2026.11.08
 - rysowanie meteogramu kilka razy szybsze: na dekoderach MIPS 750 MHz
   (np. Zgemma H3) z 17 s spadło do ok. 4 s, wygląd bez zmian

@@ -5,7 +5,9 @@ Wtyczka enigma2 pokazująca **meteogram modelu UM** z danych [meteo.pl](https://
 **ostrzeżeniami meteorologicznymi IMGW-PIB** dla ich powiatu. Od października 2026
 stary serwis old.meteo.pl z gotowymi obrazkami nie działa, więc wtyczka pobiera liczby
 z tego samego źródła co aplikacja app.meteo.pl i rysuje meteogram sama, w układzie
-znanym ze starego serwisu.
+znanym ze starego serwisu. Pobieraniem i rysowaniem zajmuje się mały program
+`ummeteo` napisany w Zigu (statyczna binarka bez zależności), więc nawet na dekoderze
+z MIPS-em 750 MHz wykres jest gotowy w ułamku sekundy.
 
 ![Meteogram dla Warszawy](docs/screenshots/meteogram.png)
 
@@ -21,7 +23,8 @@ znanym ze starego serwisu.
 - ostrzeżenia IMGW w kolorze stopnia (żółty / pomarańczowy / czerwony), szczegóły pod INFO
 - skórka skalowana do rozdzielczości (HD, FullHD, 4K); ustawienia wyglądają jak
   systemowe, bo rysuje je skórka dekodera
-- tylko Python 3 i enigma: bez `requests`, PIL czy ImageMagick
+- ekrany w Pythonie 3 enigmy, meteogram z binarki w Zigu (MIPS, ARM, ARM64, x86-64): bez
+  `requests`, PIL czy ImageMagick
 
 ## Ostrzeżenia IMGW
 
@@ -89,15 +92,16 @@ przetrwają aktualizację wtyczki i trafiają do kopii zapasowej ustawień. List
 `meteo.ini` starszych wersji jest przenoszona automatycznie.
 
 Przetestowane w kontenerach z enigmą w 1920×1080: OpenPLi (Python 3.11, skórka E2-DarkOS)
-i openATV (Python 3.13, MetrixHD).
+i openATV (Python 3.13, MetrixHD), oraz na dekoderach Zgemma H3 (MIPS, OpenPLi 9.2)
+i Zgemma H8.2H (ARM, OpenPLi 9.2).
 
 ## Skąd są dane
 
 - **Prognoza:** meteo.pl (ICM UW), model UM 4 km, 60 godzin, z API meteogramów
   aplikacji app.meteo.pl (JSON z wartościami godzinowymi dla punktu).
-- **Współrzędne miejscowości:** tabela [`coords.tsv`](coords.tsv) (id meteo.pl → szerokość,
-  długość) zbudowana z Państwowego Rejestru Nazw Geograficznych PRNG (GUGiK) skryptem
-  [`tools/build_coords.py`](tools/build_coords.py).
+- **Współrzędne miejscowości:** tabela [`zig/src/coords.tsv`](zig/src/coords.tsv) (id meteo.pl →
+  szerokość, długość) zbudowana z Państwowego Rejestru Nazw Geograficznych PRNG (GUGiK) skryptem
+  [`tools/build_coords.py`](tools/build_coords.py), wkompilowana w `ummeteo`.
 - **Ostrzeżenia:** publiczne API IMGW-PIB
   [`danepubliczne.imgw.pl/api/data/warningsmeteo`](https://danepubliczne.imgw.pl/api/data/warningsmeteo),
   sprawdzane co 10 minut.
@@ -109,10 +113,8 @@ i openATV (Python 3.13, MetrixHD).
 
 | plik | rola |
 |---|---|
-| `meteogram.py` | API meteo.pl: lista przebiegów, prognoza dla punktu, `coords.tsv` (bez enigmy) |
-| `chart.py` | rysowanie meteogramu z prognozy, wschód/zachód słońca, czas lokalny (bez enigmy) |
-| `render.py` | płótno RGB, linie, wypełnienia, tekst z `glyphs.bin` (DejaVu Sans), zapis PNG (bez enigmy) |
-| `tools/` | odtwarzanie `coords.tsv`, `teryt.tsv`, `glyphs.bin`, `loading.png`/`error.png` |
+| `zig/` | `ummeteo`: pobieranie prognozy z API meteo.pl i rysowanie meteogramu do PNG, czysty Zig 0.17.1 ([zig/README.md](zig/README.md)) |
+| `renderer.py` | uruchamia `bin/ummeteo-<arch>` dla dekodera i czyta jego wynik (bez enigmy) |
 | `alerts.py` | ostrzeżenia IMGW-PIB dla powiatu (bez enigmy) |
 | `storage.py` | katalog `woj/*`, wyszukiwarka, (de)serializacja ulubionych (bez enigmy) |
 | `settings.py` | `config.plugins.UMMeteoPL`, migracja `meteo.ini` |
@@ -121,7 +123,13 @@ i openATV (Python 3.13, MetrixHD).
 | `setup.py` | ustawienia (`ConfigListScreen`, wygląd ze skórki `Setup`) |
 | `configure.py` | edytor listy ulubionych |
 | `keymap.xml` | kontekst `MeteoActions` |
-| `zig/` | ten sam meteogram w czystym Zigu 0.17.1: statyczna binarka `ummeteo` (mipsel, ARM), piksel w piksel jak Python, ~40× szybsze rysowanie na MIPS; na razie obok wtyczki ([zig/README.md](zig/README.md)) |
+| `tools/` | odtwarzanie `zig/src/coords.tsv`, `teryt.tsv`, `zig/src/glyphs.bin` |
+
+Binarki `bin/ummeteo-<arch>` (mipsel, arm, aarch64, x86_64) nie są w gicie: buduje je
+`scripts/publish.sh` (`zig build release`, kompilator Zig 0.17.1 wskazany przez `ZIG`
+w `scripts/publish.local`), a `install.sh` zostawia na dekoderze tylko tę dla jego procesora.
+Na ARM-ie jest jedna binarka dla wszystkich ARMv7 (Cortex-A7 bez NEON i z 16 rejestrami D,
+bo tyle ma np. Zgemma H8.2H).
 
 Wtyczka co 8 godzin sprawdza w tle plik `version` na serwerze wtyczki i przy innej
 wersji uruchamia z niego `install.sh`. Adres serwera jest
@@ -133,6 +141,10 @@ w `scripts/publish.local`, nigdy w gicie.
 Testy działają na PC bez enigmy. Uruchamia się je z katalogu nadrzędnego:
 
     python3 -m unittest UMMeteoPL.tests.test_core -v
+    cd UMMeteoPL/zig && zig build test
+
+Test w Zigu wymaga, żeby wykres był piksel w piksel taki sam jak referencyjny obraz
+dawnej wersji w Pythonie (suma SHA-256 pikseli).
 
 Pełna instrukcja i historia zmian: [opis.txt](opis.txt). Ten sam tekst pokazuje się na
 dekoderze pod klawiszem ŻÓŁTYM.

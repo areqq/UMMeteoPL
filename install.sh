@@ -55,6 +55,21 @@ if [ ! -f "$SRC/plugin.py" ] || [ ! -f "$SRC/Meteo.py" ]; then
 fi
 rm -rf "$SRC/docs" "$SRC/tests" "$SRC/tools" "$SRC/scripts" "$SRC/.gitignore" "$SRC/install.sh"
 
+# the meteogram is drawn by bin/ummeteo-<arch> (Zig); keep only the one for this box
+case "$(uname -m)" in
+    mips*) arch=mipsel; [ "$(python3 -c 'import sys; print(sys.byteorder)')" = little ] || arch= ;;
+    arm*) arch=arm ;;
+    aarch64) arch=aarch64 ;;
+    x86_64) arch=x86_64 ;;
+    *) arch= ;;
+esac
+if [ -d "$SRC/bin" ]; then
+    [ -n "$arch" ] && [ -x "$SRC/bin/ummeteo-$arch" ] || echo "UMMeteoPL: brak programu ummeteo dla $(uname -m) - meteogram nie zadziała" >&2
+    for f in "$SRC"/bin/ummeteo-*; do
+        [ "$f" = "$SRC/bin/ummeteo-$arch" ] || rm -f "$f"
+    done
+fi
+
 # config.plugins.UMMeteoPL lives in /etc/enigma2/settings; only the legacy list is kept for migration
 for f in meteo.ini meteo.ini.migrated; do
     if [ -f "$DEST/$f" ]; then
