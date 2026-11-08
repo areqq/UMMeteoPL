@@ -40,7 +40,7 @@ z godzinami przesuniętymi na chwilę robienia zrzutu.</sub>
 
 ## Ulubione i ustawienia
 
-| Lista ulubionych (OK) | Ustawienia (MENU) |
+| Lista ulubionych (LIST) | Ustawienia (MENU) |
 |---|---|
 | <img src="docs/screenshots/ulubione-lista.png" alt="Lista ulubionych" width="300"> | <img src="docs/screenshots/ustawienia.png" alt="Ustawienia" width="480"> |
 
@@ -57,12 +57,12 @@ oglądanej miejscowości, oraz jak długo pamiętać pobrany meteogram.
 |---|---|
 | ◀ ▶, CH+ / CH−, ZIELONY | poprzednia / następna miejscowość |
 | 1–9, 0 | skok do pozycji z listy, 0 = pierwsza |
-| OK, LIST | lista ulubionych |
+| LIST | lista ulubionych |
 | CZERWONY | odśwież (z pominięciem pamięci) |
 | MENU, NIEBIESKI | ustawienia |
 | INFO | szczegóły ostrzeżeń IMGW (bez ostrzeżeń: pomoc) |
 | ŻÓŁTY | pomoc |
-| EXIT | wyjście |
+| OK, EXIT | wyjście |
 
 W edytorze ulubionych: OK zmienia albo dodaje miejscowość, CZERWONY usuwa, ŻÓŁTY / NIEBIESKI
 przesuwa, ZIELONY zapisuje. EXIT z niezapisanymi zmianami pyta, co zrobić.

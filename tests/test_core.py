@@ -137,7 +137,7 @@ def stub_enigma(height):
                                   configfile=FakeConfigFile()),
         "Components.ConfigList": dict(ConfigListScreen=type("ConfigListScreen", (), {})), "Components.Sources": {},
         "Components.Sources.StaticText": dict(StaticText=object), "Components.Label": dict(Label=object),
-        "Components.Pixmap": dict(Pixmap=object), "Components.MenuList": dict(MenuList=object),
+        "Components.Pixmap": dict(Pixmap=object), "Components.MenuList": dict(MenuList=object), "Components.ScrollLabel": dict(ScrollLabel=object),
         "Screens": {}, "Screens.ChoiceBox": dict(ChoiceBox=object), "Screens.Screen": dict(Screen=object),
         "Screens.TextBox": dict(TextBox=object), "Screens.MessageBox": dict(MessageBox=object),
         "Screens.VirtualKeyBoard": dict(VirtualKeyBoard=object),

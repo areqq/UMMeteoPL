@@ -4,12 +4,12 @@ EKRAN METEOGRAMU
   LEWO / PRAWO, CH+/CH-, ZIELONY  poprzednia / następna miejscowość
   1-9                             skok do miejscowości z listy
   0                               pierwsza miejscowość
-  OK lub LIST                     lista ulubionych
+  LIST                            lista ulubionych
   CZERWONY                        odśwież (pomija pamięć podręczną)
   MENU lub NIEBIESKI              ustawienia - lista ulubionych
   INFO                            szczegóły ostrzeżeń IMGW (gdy są), inaczej pomoc
   ŻÓŁTY                           ta pomoc
-  EXIT                            wyjście
+  OK lub EXIT                     wyjście
 
 Meteogram to prognoza modelu UM 4 km na 60 godzin, co godzinę, rysowana
 na dekoderze z liczb pobranych z meteo.pl: temperatura (średnia, pasmo
@@ -54,6 +54,10 @@ Państwowego Rejestru Nazw Geograficznych (GUGiK).
 
 
 Historia zmian:
+
+2026.11.10
+- OK zamyka wtyczkę (lista ulubionych pod LIST)
+- szczegóły ostrzeżeń IMGW we własnym oknie z dużą czcionką
 
 2026.11.09
 - meteogram pobiera i rysuje program ummeteo napisany w Zigu (statyczna

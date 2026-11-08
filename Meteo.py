@@ -9,6 +9,7 @@ from twisted.internet.threads import deferToThread
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.Pixmap import Pixmap
+from Components.ScrollLabel import ScrollLabel
 from Screens.ChoiceBox import ChoiceBox
 from Screens.Screen import Screen
 from Screens.TextBox import TextBox
@@ -79,10 +80,10 @@ class Meteo(Screen):
         self["title"] = Label("")
         self["status"] = Label("")
         self["chart"] = Pixmap()
-        self["hints"] = Label("OK lista   < > zmiana   1-9 skok")
+        self["hints"] = Label("< > zmiana   1-9 skok   LIST lista   OK wyjście")
         self["alert"] = Label("")
         self["actions"] = ActionMap(["MeteoActions"], {
-            "ok": self.choose,
+            "ok": self.close,
             "list": self.choose,
             "cancel": self.close,
             "left": self.prev,
@@ -252,8 +253,8 @@ class Meteo(Screen):
         if not found:
             return self.help()
         now = datetime.now()
-        text = "\n\n----------\n\n".join(a.details(now) for a in found)
-        self.session.open(TextBox, text + "\n\nŹródło: IMGW-PIB, danepubliczne.imgw.pl",
+        text = "\n\n".join(a.details(now) for a in found)
+        self.session.open(AlertText, text + "\n\nŹródło: IMGW-PIB, danepubliczne.imgw.pl",
                           f"Ostrzeżenia IMGW - {self.favourites[self.index].name}")
 
     def set_status(self, text, error=False):
@@ -324,3 +325,30 @@ class Meteo(Screen):
         except OSError:
             text = "Brak opisu."
         self.session.open(TextBox, text, f"UM Meteo.pl {VERSION} - pomoc")
+
+
+class AlertText(Screen):
+    """IMGW warning details in a big, readable font (the skin's TextBox is tiny on a TV)."""
+
+    def __init__(self, session, text, title):
+        width, height = 1000, 620
+        self.skin = f"""
+        <screen name="UMMeteoPLAlert" position="center,center" size="{s(width)},{s(height)}" flags="wfNoBorder" backgroundColor="#00ffffff" title="Ostrzeżenia IMGW">
+            <widget name="title" position="{s(20)},0" size="{s(width - 40)},{s(50)}" font="Regular;{s(30)}" valign="center" foregroundColor="#00202020" backgroundColor="#00ffffff" />
+            <eLabel position="{s(20)},{s(50)}" size="{s(width - 40)},{s(2)}" backgroundColor="#00d02020" />
+            <widget name="text" position="{s(20)},{s(62)}" size="{s(width - 40)},{s(height - 102)}" font="Regular;{s(30)}" foregroundColor="#00202020" backgroundColor="#00ffffff" />
+            <eLabel text="OK / EXIT zamyka,  góra / dół przewija" position="0,{s(height - 32)}" size="{s(width)},{s(32)}" font="Regular;{s(17)}" halign="center" valign="center" foregroundColor="#00606060" backgroundColor="#00ececec" />
+        </screen>"""
+        Screen.__init__(self, session)
+        self.skinName = "UMMeteoPLAlert"
+        self.setTitle(title)
+        self["title"] = Label(title)
+        self["text"] = ScrollLabel(text)
+        self["actions"] = ActionMap(["OkCancelActions", "DirectionActions"], {
+            "ok": self.close,
+            "cancel": self.close,
+            "up": self["text"].pageUp,
+            "down": self["text"].pageDown,
+            "left": self["text"].pageUp,
+            "right": self["text"].pageDown,
+        }, -1)
