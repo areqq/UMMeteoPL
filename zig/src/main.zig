@@ -24,6 +24,8 @@ const usage =
     \\  --lat/--lon      współrzędne punktu
     \\  --scale S        skala wykresu (1 = 1060x660, 1.5 = FullHD, 2 = WQHD; domyślnie 1.5)
     \\  --out PLIK       plik PNG (domyślnie meteogram.png)
+    \\  --title TEKST    nazwa miejscowości w nagłówku (wtyczka), --note TEKST obok niej (np. 1/5)
+    \\  --placeholder loading|error   plansza „Pobieram prognozę...” / „Nie udało się...” zamiast wykresu
     \\  --json PLIK      zamiast pobierać: narysuj z zapisanej odpowiedzi API
     \\  --run UNIX       czas przebiegu modelu dla --json (domyślnie 0)
     \\  --save-json PLIK zapisz odpowiedź API
@@ -41,6 +43,9 @@ const Options = struct {
     scale: f64 = 1.5,
     out: []const u8 = "meteogram.png",
     json: ?[]const u8 = null,
+    title: []const u8 = "",
+    note: []const u8 = "",
+    placeholder: ?[]const u8 = null,
     run: i64 = 0,
     save_json: ?[]const u8 = null,
     ca: []const u8 = api.default_ca_path,
@@ -71,6 +76,12 @@ fn parseArgs(it: *std.process.Args.Iterator) !Options {
                 o.out = val;
             } else if (std.mem.eql(u8, arg, "--json")) {
                 o.json = val;
+            } else if (std.mem.eql(u8, arg, "--title")) {
+                o.title = val;
+            } else if (std.mem.eql(u8, arg, "--note")) {
+                o.note = val;
+            } else if (std.mem.eql(u8, arg, "--placeholder")) {
+                o.placeholder = val;
             } else if (std.mem.eql(u8, arg, "--run")) {
                 o.run = try std.fmt.parseInt(i64, val, 10);
             } else if (std.mem.eql(u8, arg, "--save-json")) {
@@ -142,14 +153,31 @@ pub fn main(init: std.process.Init) !void {
         lat = c.lat;
         lon = c.lon;
     }
-    if (lat == null or lon == null) {
-        std.debug.print("{s}ummeteo: podaj --id albo --lat i --lon\n", .{usage});
-        std.process.exit(2);
-    }
 
     var fonts = try render.loadFonts(gpa);
     defer fonts.deinit(gpa);
     timer.lap("czcionki");
+
+    if (opts.placeholder) |kind| {
+        const pic = if (std.mem.eql(u8, kind, "loading"))
+            try chart.placeholder(gpa, &fonts, opts.scale, "Pobieram prognozę...", "meteo.pl, model UM", chart.placeholder_blue)
+        else
+            try chart.placeholder(gpa, &fonts, opts.scale, "Nie udało się pobrać prognozy", "CZERWONY - spróbuj ponownie", chart.placeholder_red);
+        defer gpa.free(pic.px);
+        const bytes = try png.encode(gpa, pic.width, pic.height, pic.px, opts.level);
+        defer gpa.free(bytes);
+        try Io.Dir.cwd().writeFile(io, .{ .sub_path = opts.out, .data = bytes });
+        var ob: [256]u8 = undefined;
+        var w = Io.File.stdout().writerStreaming(io, &ob);
+        try w.interface.print("ok {d}x{d} run=0 start=0 steps=0 out={s}\n", .{ pic.width, pic.height, opts.out });
+        try w.interface.flush();
+        return;
+    }
+
+    if (lat == null or lon == null) {
+        std.debug.print("{s}ummeteo: podaj --id albo --lat i --lon\n", .{usage});
+        std.process.exit(2);
+    }
 
     var forecast: fc.Forecast = undefined;
     if (opts.json) |path| {
@@ -207,7 +235,7 @@ pub fn main(init: std.process.Init) !void {
     }
     defer fc.freeForecast(gpa, &forecast);
 
-    const pic = try chart.renderRgb(gpa, &fonts, &forecast, opts.scale);
+    const pic = try chart.renderRgb(gpa, &fonts, &forecast, opts.scale, opts.title, opts.note);
     defer gpa.free(pic.px);
     timer.lap("rysowanie");
     const bytes = try png.encode(gpa, pic.width, pic.height, pic.px, opts.level);

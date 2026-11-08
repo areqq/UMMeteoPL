@@ -15,7 +15,8 @@ z MIPS-em 750 MHz wykres jest gotowy w ułamku sekundy.
   temperatura gruntu), opad (deszcz / śnieg / deszcz ze śniegiem), burze, wilgotność,
   prawdopodobieństwo opadu, ciśnienie, wiatr z porywami i kierunkiem, podstawa i
   wierzchołek chmur, widzialność, zachmurzenie na czterech piętrach, mgła; noc zaznaczona
-- wykres rysowany na dekoderze, ostry w HD, FullHD, WQHD i 4K
+- wykres na całym ekranie, bez pasków, dużym pismem (do czytania z kanapy), ostry w HD,
+  FullHD, WQHD i 4K
 - 2358 miejscowości ze wszystkich województw, z wyszukiwarką, w której wielkość liter
   i polskie znaki nie mają znaczenia
 - przełączanie miejscowości strzałkami, CH+/CH−, klawiszami 1–9 albo z listy;
@@ -29,7 +30,8 @@ z MIPS-em 750 MHz wykres jest gotowy w ułamku sekundy.
 ## Ostrzeżenia IMGW
 
 Gdy dla powiatu wybranej miejscowości obowiązuje albo jest zapowiedziane ostrzeżenie,
-pasek w stopce pokazuje najpoważniejsze z nich. INFO otwiera pełną treść wszystkich.
+pasek w prawym górnym rogu pokazuje najpoważniejsze z nich. INFO otwiera pełną treść wszystkich
+w oknie z dużą czcionką.
 
 ![Pasek ostrzeżenia](docs/screenshots/ostrzezenie.png)
 

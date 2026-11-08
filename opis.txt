@@ -19,11 +19,11 @@ wiatr z porywami i kierunkiem, podstawa i wierzchołek chmur, widzialność,
 zachmurzenie na czterech piętrach i mgła. Szare pasma to noc, u góry czas
 lokalny (CET/CEST), na dole UTC. Pobrana prognoza jest pamiętana (domyślnie
 30 minut), więc przełączanie między miejscowościami jest natychmiastowe.
-Godzina startu prognozy (UTC) jest w prawym górnym rogu.
+Godzina startu prognozy (UTC) jest pod nazwą miejscowości.
 
 OSTRZEŻENIA IMGW
 Gdy dla powiatu wybranej miejscowości obowiązuje (albo jest zapowiedziane)
-ostrzeżenie meteorologiczne IMGW-PIB, w prawym dolnym rogu pojawia się
+ostrzeżenie meteorologiczne IMGW-PIB, w prawym górnym rogu pojawia się
 pasek w kolorze stopnia ostrzeżenia (żółty / pomarańczowy / czerwony) z
 najpoważniejszym z nich; INFO pokazuje treść wszystkich. Dane: publiczne API
 danepubliczne.imgw.pl, sprawdzane co 10 minut.
@@ -54,6 +54,12 @@ Państwowego Rejestru Nazw Geograficznych (GUGiK).
 
 
 Historia zmian:
+
+2026.11.11
+- meteogram na całym ekranie, bez pasków nad i pod nim: większe pismo,
+  wyższe panele, grubsze linie - do czytania z kanapy; nazwa miejscowości
+  i pozycja z listy są w nagłówku wykresu, ostrzeżenie IMGW i komunikaty
+  nakładają się w prawym górnym rogu tylko wtedy, gdy są potrzebne
 
 2026.11.10
 - OK zamyka wtyczkę (lista ulubionych pod LIST)

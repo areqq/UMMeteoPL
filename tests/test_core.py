@@ -50,15 +50,16 @@ class RendererTest(unittest.TestCase):
             calls.append(cmd)
             return types.SimpleNamespace(returncode=0, stdout="ok 1060x660 run=1793448000 start=1 steps=60 out=o.png\n", stderr="")
         with unittest.mock.patch.object(renderer, "binary", lambda: "/usr/bin/true"):
-            run_text, size = renderer.render("2119", 1.0, "/tmp/o.png", run)
+            run_text, size = renderer.render("2119", 1.0, "/tmp/o.png", "Dobre, pow.radziejowski", "1/5", run=run)
         self.assertEqual((run_text, size), ("31.10.2026 12 UTC", (1060, 660)))
         self.assertEqual(calls[0][1:7], ["--id", "2119", "--scale", "1", "--out", "/tmp/o.png"])
+        self.assertEqual(calls[0][-4:], ["--title", "Dobre, pow.radziejowski", "--note", "1/5"])
 
         def failing(cmd, **kwargs):
             return types.SimpleNamespace(returncode=1, stdout="", stderr="  czcionki: 1 ms\nummeteo: brak połączenia z meteo.pl (error.ConnectionRefused)\n")
         with unittest.mock.patch.object(renderer, "binary", lambda: "/usr/bin/true"):
             with self.assertRaisesRegex(renderer.RenderError, "^brak połączenia z meteo.pl"):
-                renderer.render("2119", 1.5, "/tmp/o.png", failing)
+                renderer.render("2119", 1.5, "/tmp/o.png", run=failing)
 
     def test_missing_binary_is_a_readable_error(self):
         with unittest.mock.patch.object(renderer, "PLUGIN_DIR", "/nonexistent"):

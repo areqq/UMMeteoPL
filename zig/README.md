@@ -7,7 +7,8 @@ piksele** (test `chart pixels equal the python renderer` porównuje SHA-256 suro
 z referencją wygenerowaną tamtym kodem na tej samej próbce, w skali 1,0 i 1,5).
 
 ```
-ummeteo --id 2119 [--scale 1.5] [--out meteogram.png]
+ummeteo --id 2119 [--scale 1.5] [--out meteogram.png] [--title "Warszawa" --note 1/5]
+ummeteo --placeholder loading|error --out plansza.png
 ummeteo --lat 52.2298 --lon 21.0117 --save-json odp.json
 ummeteo --json odp.json --lat 52.2298 --lon 21.0117 --run 1793448000   # bez sieci
 ummeteo -v                                                             # czasy etapów
@@ -42,7 +43,7 @@ wkompilowane (`@embedFile`); odtwarzają je `tools/build_font.py` i `tools/build
 |---|---|
 | `src/forecast.zig` | serie, JSON `available` i `um4_60`, treść POST, `coords.tsv` |
 | `src/api.zig` | `std.http.Client`; pakiet CA czytany ręcznie (jądro 4.10 nie ma `statx`, więc `Bundle.rescan` std by padł) |
-| `src/chart.zig` | układ meteogramu, linia po linii za `chart.py` (Python `round` = do parzystej: `timeutil.pyround`) |
+| `src/chart.zig` | układ meteogramu na cały ekran 1280×720 (wyrósł z `chart.py`; Python `round` = do parzystej: `timeutil.pyround`), plansze loading/error |
 | `src/render.zig` | płótno RGB, scanline polygon, linie jako prostokąty-odcinki, glify z `glyphs.bin` |
 | `src/png.zig` | PNG RGB, filtr 0; poziom 0 = bloki `stored` (bez kompresji), 1–9 = deflate |
 | `src/timeutil.zig` | kalendarz UTC, czas polski (reguła UE), wschód/zachód słońca, D°M'S" |

@@ -22,8 +22,8 @@ ALERTS_TTL = 10 * 60
 ALERT_COLOURS = {1: (0xf2c200, 0x202020), 2: (0xff8c00, 0x202020), 3: (0xd02020, 0xffffff)}
 
 SCALE = getDesktop(0).size().height() / 720.0
-# the meteogram is drawn by bin/ummeteo (zig/): 1:1 for HD, FullHD and WQHD (2560x1440, scale 2);
-# at 4K it is drawn at scale 2 (an 8 MB PNG in /tmp instead of 19 MB) and scaled up by ePicLoad
+# the meteogram (bin/ummeteo, zig/) fills the screen: 1:1 for HD, FullHD and WQHD (2560x1440, scale 2);
+# at 4K it is drawn at scale 2 (a 10 MB PNG in /tmp instead of 24 MB) and scaled up by ePicLoad
 RENDER_SCALE = min(SCALE, 2.0)
 
 
@@ -32,32 +32,20 @@ def s(value):
     return int(round(value * SCALE))
 
 
-def keys_bar(y, width, items, bg):
-    """Footer with coloured key markers: [(colour, text, width), ...]."""
-    out = [f'<eLabel position="0,{s(y)}" size="{s(width)},{s(30)}" backgroundColor="{bg}" />']
-    x = 10
-    for colour, text, w in items:
-        out.append(f'<eLabel position="{s(x)},{s(y + 8)}" size="{s(14)},{s(14)}" backgroundColor="{colour}" zPosition="1" />')
-        out.append(f'<eLabel text="{text}" position="{s(x + 20)},{s(y)}" size="{s(w - 24)},{s(30)}" font="Regular;{s(17)}" '
-                   f'valign="center" foregroundColor="#00202020" backgroundColor="{bg}" zPosition="1" />')
-        x += w
-    return "\n".join(out)
-
-
+# key colours of the footer bars (the favourites editor, configure.py)
 RED, GREEN, YELLOW, BLUE = "#00e04040", "#0030b030", "#00e0c020", "#003070e0"
 
 
 def build_skin():
-    header, chart_w, chart_h = 26, renderer.WIDTH, renderer.HEIGHT
-    width, footer_y = chart_w, header + chart_h
+    """The whole screen is the chart; the status (loading, errors) and the IMGW alert are laid
+    over its top-right corner, which the chart leaves empty. No bars, no hints: the keys are
+    in the help (YELLOW)."""
+    width, height = renderer.WIDTH, renderer.HEIGHT
     return f"""
-    <screen name="UMMeteoPL" position="center,center" size="{s(width)},{s(footer_y + 30)}" flags="wfNoBorder" backgroundColor="#00ffffff" title="UM Meteo.pl">
-        <widget name="title" position="{s(10)},0" size="{s(500)},{s(header)}" font="Regular;{s(20)}" valign="center" foregroundColor="#00202020" backgroundColor="#00ffffff" />
-        <widget name="status" position="{s(510)},0" size="{s(width - 520)},{s(header)}" font="Regular;{s(16)}" halign="right" valign="center" foregroundColor="#00505050" backgroundColor="#00ffffff" />
-        <widget name="chart" position="0,{s(header)}" size="{s(chart_w)},{s(chart_h)}" zPosition="1" />
-        {keys_bar(footer_y, width, [(RED, "Odśwież", 110), (GREEN, "Następna", 115), (YELLOW, "Pomoc", 100), (BLUE, "Ustawienia", 125)], "#00ececec")}
-        <widget name="hints" position="{s(460)},{s(footer_y)}" size="{s(width - 470)},{s(30)}" font="Regular;{s(16)}" halign="right" valign="center" foregroundColor="#00606060" backgroundColor="#00ececec" zPosition="1" />
-        <widget name="alert" position="{s(460)},{s(footer_y + 2)}" size="{s(width - 462)},{s(26)}" font="Regular;{s(15)}" halign="center" valign="center" noWrap="1" foregroundColor="#00202020" backgroundColor="#00f2c200" zPosition="2" />
+    <screen name="UMMeteoPL" position="0,0" size="{s(width)},{s(height)}" flags="wfNoBorder" backgroundColor="#00ffffff" title="UM Meteo.pl">
+        <widget name="chart" position="0,0" size="{s(width)},{s(height)}" zPosition="1" />
+        <widget name="status" position="{s(900)},0" size="{s(380)},{s(26)}" font="Regular;{s(17)}" halign="right" valign="center" foregroundColor="#00505050" backgroundColor="#00ffffff" zPosition="2" />
+        <widget name="alert" position="{s(900)},0" size="{s(380)},{s(26)}" font="Regular;{s(17)}" halign="center" valign="center" noWrap="1" foregroundColor="#00202020" backgroundColor="#00f2c200" zPosition="3" />
     </screen>"""
 
 
@@ -77,10 +65,8 @@ class Meteo(Screen):
         # named "Meteo" and "Configure", which would replace the embedded skin
         self.skinName = "UMMeteoPL"
         self.setTitle("UM Meteo.pl")
-        self["title"] = Label("")
         self["status"] = Label("")
         self["chart"] = Pixmap()
-        self["hints"] = Label("< > zmiana   1-9 skok   LIST lista   OK wyjście")
         self["alert"] = Label("")
         self["actions"] = ActionMap(["MeteoActions"], {
             "ok": self.close,
@@ -143,8 +129,7 @@ class Meteo(Screen):
             self.show_location(min(self.index, len(self.favourites) - 1))
             return
         self.seq += 1
-        self["title"].setText("Brak ulubionych miejscowości")
-        self.set_status("MENU lub NIEBIESKI - dodaj miejscowość")
+        self.set_status("Brak ulubionych miejscowości: MENU lub NIEBIESKI")
         self["chart"].hide()
         if first_run:
             # first_load runs during applySkin, before the screen is modal; opening a
@@ -159,7 +144,6 @@ class Meteo(Screen):
         loc = self.favourites[index]
         self.seq += 1
         seq = self.seq
-        self["title"].setText(loc.name)
         self["chart"].show()
         self.update_alert()
         self.load_alerts(force)
@@ -168,9 +152,9 @@ class Meteo(Screen):
         if cached and not force and time.time() - cached[0] < int(settings.cfg.cache.value) * 60:
             self.ready(seq, loc.id, cached)
             return
-        self.set_status(f"{self.position()}   Ładuję...")
+        self.set_status(f"{loc.name}  {self.position()}   Ładuję...")
         self.show_picture(storage.PLUGIN_DIR + "/loading.png")
-        d = deferToThread(self.download, loc.id)
+        d = deferToThread(self.download, loc.id, loc.name, self.position())
         d.addCallbacks(lambda result: self.ready(seq, loc.id, result), lambda failure: self.failed(seq, failure))
 
     def next(self):
@@ -189,9 +173,9 @@ class Meteo(Screen):
 
     # --- worker thread -----------------------------------------------------
     @staticmethod
-    def download(location_id):
+    def download(location_id, name, position):
         path = f"{TMP_DIR}/{location_id}.png"
-        run, size = renderer.render(location_id, RENDER_SCALE, path)
+        run, size = renderer.render(location_id, RENDER_SCALE, path, name, position)
         return time.time(), run, path, size
 
     # --- reactor thread ----------------------------------------------------
@@ -201,14 +185,14 @@ class Meteo(Screen):
         self.cache[loc_id] = result
         if seq != self.seq:
             return
-        _t, run, path, size = result
-        self.set_status(f"{self.position()}   prognoza z {run}")
+        _t, _run, path, size = result
+        self.set_status("")                     # the chart carries the name, position and run time
         self.show_picture(path, size)
 
     def failed(self, seq, failure):
         if self.closed or seq != self.seq:
             return
-        self.set_status(f"{self.position()}   {describe_error(failure)}", error=True)
+        self.set_status(f"{self.favourites[self.index].name}  {self.position()}   {describe_error(failure)}", error=True)
         self.show_picture(storage.PLUGIN_DIR + "/error.png")
 
     # --- IMGW warnings -----------------------------------------------------
@@ -238,14 +222,12 @@ class Meteo(Screen):
         found = self.current_alerts()
         if not found:
             self["alert"].hide()
-            self["hints"].show()
             return
         bg, fg = ALERT_COLOURS.get(found[0].level, ALERT_COLOURS[3])
         self["alert"].setText(f"{alerts.summary(found, datetime.now())}  [INFO]")
         if self["alert"].instance:
             self["alert"].instance.setBackgroundColor(gRGB(bg))
             self["alert"].instance.setForegroundColor(gRGB(fg))
-        self["hints"].hide()
         self["alert"].show()
 
     def info(self):
@@ -261,6 +243,10 @@ class Meteo(Screen):
         self["status"].setText(text)
         if self["status"].instance:
             self["status"].instance.setForegroundColor(gRGB(0xc00000 if error else 0x505050))
+        if text:
+            self["status"].show()
+        else:
+            self["status"].hide()
 
     # --- picture -----------------------------------------------------------
     def show_picture(self, path, size=None):
@@ -316,6 +302,7 @@ class Meteo(Screen):
 
     def configured(self, changed=False):
         if changed:
+            self.cache.clear()              # the pictures carry the position in the list
             self.reload()
 
     def help(self):

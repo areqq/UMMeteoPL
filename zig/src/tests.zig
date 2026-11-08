@@ -1,5 +1,5 @@
-//! Test root: every module's own tests plus the end-to-end checks against the
-//! Python renderer (hashes computed from chart.py on the same fixture).
+//! Test root: every module's own tests plus the end-to-end checks of the whole chart
+//! (pixel hashes of the fixture, a regression guard).
 const std = @import("std");
 const tu = @import("timeutil.zig");
 const fc = @import("forecast.zig");
@@ -42,19 +42,21 @@ fn loadFixture(gpa: std.mem.Allocator) !fc.Forecast {
     return fc.parseForecast(gpa, @embedFile("fixtures/um4_60_warszawa_2026-10-31.json"), run_fixture, 52.2298, 21.0117);
 }
 
-test "chart pixels equal the python renderer" {
+test "chart pixels match the reference" {
+    // Regression guard: the full-screen layout rendered on the Warszawa fixture with the
+    // title "Warszawa 1/5". The hashes come from this very renderer after a visual check
+    // (2026-11-08); an intentional layout change updates them.
     const gpa = std.testing.allocator;
     var fonts = try render.loadFonts(gpa);
     defer fonts.deinit(gpa);
     var f = try loadFixture(gpa);
     defer fc.freeForecast(gpa, &f);
-    // sha256 of b"".join(canvas.rows) from chart.Chart(forecast, scale).draw() in Python
     const expected = [_]struct { scale: f64, w: u32, h: u32, sha: []const u8 }{
-        .{ .scale = 1.0, .w = 1060, .h = 660, .sha = "e65594c2b02f4acd1ae9d5f076ff24816fcb9186a5f2fab42cf683ec04a79de3" },
-        .{ .scale = 1.5, .w = 1590, .h = 990, .sha = "430fe59e6d5e7736b16f1620462d22e659f7b80e163e22536130935c8b74dd7c" },
+        .{ .scale = 1.0, .w = 1280, .h = 720, .sha = "6225b42f7cc62a562b22f00b6117a5f9f753c13fec8fe1e5ad3e0227334b88e0" },
+        .{ .scale = 1.5, .w = 1920, .h = 1080, .sha = "a43bb555f439582559e6d2b7b7907bb9688ae1ada9d5de23597fc008bfc13976" },
     };
     for (expected) |e| {
-        const pic = try chart.renderRgb(gpa, &fonts, &f, e.scale);
+        const pic = try chart.renderRgb(gpa, &fonts, &f, e.scale, "Warszawa", "1/5");
         defer gpa.free(pic.px);
         try std.testing.expectEqual(e.w, pic.width);
         try std.testing.expectEqual(e.h, pic.height);
@@ -72,12 +74,14 @@ test "missing values do not crash" {
     var f = try loadFixture(gpa);
     defer fc.freeForecast(gpa, &f);
     for (f.series) |s| @memset(s, null);
-    const pic = try chart.renderRgb(gpa, &fonts, &f, 1.0);
+    const pic = try chart.renderRgb(gpa, &fonts, &f, 1.0, "", "");
     gpa.free(pic.px);
     var g = try loadFixture(gpa);
     defer fc.freeForecast(gpa, &g);
     @memset(g.series[@backingInt(fc.Series.pcpttl_max)], 50.0); // over the scale
     @memset(g.series[@backingInt(fc.Series.storm_max)], 1.0);
-    const pic2 = try chart.renderRgb(gpa, &fonts, &g, 2.0);
+    const pic2 = try chart.renderRgb(gpa, &fonts, &g, 2.0, "Zakopane, pow.tatrzański", "4/5");
     gpa.free(pic2.px);
+    const ph = try chart.placeholder(gpa, &fonts, 1.5, "Pobieram prognozę...", "meteo.pl, model UM", chart.placeholder_blue);
+    gpa.free(ph.px);
 }

@@ -1,6 +1,7 @@
-//! The meteogram in the 'retro' layout of old.meteo.pl, a port of chart.py. Design
-//! pixels of a 1280x720 skin scaled by `scale`; the arithmetic and rounding follow
-//! the Python line by line so both renderers paint the same pixels.
+//! The meteogram in the 'retro' layout of old.meteo.pl, drawn on the whole screen:
+//! design pixels of a 1280x720 skin scaled by `scale` (1.5 = FullHD). Started as a
+//! line-by-line port of the Python chart.py (Python `round` = ties to even), then
+//! enlarged for readability from the sofa: bigger type, taller panels, no bars.
 const std = @import("std");
 const render = @import("render.zig");
 const tu = @import("timeutil.zig");
@@ -13,19 +14,23 @@ const Point = render.Point;
 const pyround = tu.pyround;
 const pyint = tu.pyint;
 
-pub const width = 1060;
-pub const height = 660;
-const plot_x0 = 300; // the time axis
-const plot_x1 = 1000;
-const legend_x = 8;
-const top = 48; // first panel
-const gap = 6;
+pub const width = 1280;
+pub const height = 720;
+const plot_x0 = 370; // the time axis
+const plot_x1 = 1210;
+const legend_x = 10;
+const top = 56; // first panel
+const gap = 7;
 const PanelKey = enum { temp, precip, pressure, wind, winddir, cloudbase, clouds };
 const Panel = struct { key: PanelKey, height: i64 };
 const panels = [_]Panel{
-    .{ .key = .temp, .height = 112 },  .{ .key = .precip, .height = 90 },  .{ .key = .pressure, .height = 68 },
-    .{ .key = .wind, .height = 72 },   .{ .key = .winddir, .height = 18 }, .{ .key = .cloudbase, .height = 84 },
-    .{ .key = .clouds, .height = 90 },
+    .{ .key = .temp, .height = 122 },
+    .{ .key = .precip, .height = 108 },
+    .{ .key = .pressure, .height = 66 },
+    .{ .key = .wind, .height = 72 },
+    .{ .key = .winddir, .height = 20 },
+    .{ .key = .cloudbase, .height = 90 },
+    .{ .key = .clouds, .height = 110 },
 };
 
 const white: Rgb = .{ 255, 255, 255 };
@@ -153,6 +158,9 @@ pub const Chart = struct {
     small: *const Font,
     normal: *const Font,
     big: *const Font,
+    title_font: *const Font,
+    title: []const u8, // location name (the plugin's header), "" = standalone
+    note: []const u8, // "1/5", drawn after the title
     thin: i64,
     thick: i64,
     t0: i64, // the run hour: left edge
@@ -161,18 +169,21 @@ pub const Chart = struct {
     hour_w: f64,
     bottom: i64 = 0,
 
-    pub fn init(gpa: std.mem.Allocator, fonts: *const render.Fonts, f: *const fc.Forecast, scale: f64) !Chart {
+    pub fn init(gpa: std.mem.Allocator, fonts: *const render.Fonts, f: *const fc.Forecast, scale: f64, title: []const u8, note: []const u8) !Chart {
         if (f.steps < 2 or f.steps > max_steps) return error.EmptyForecast;
         var c: Chart = .{
             .gpa = gpa,
             .f = f,
             .scale = scale,
             .canvas = undefined,
-            .small = fonts.font(pyround(9 * scale)),
-            .normal = fonts.font(pyround(11 * scale)),
-            .big = fonts.font(pyround(13 * scale)),
+            .small = fonts.font(pyround(11 * scale)),
+            .normal = fonts.font(pyround(13 * scale)),
+            .big = fonts.font(pyround(16 * scale)),
+            .title_font = fonts.font(pyround(20 * scale)),
+            .title = title,
+            .note = note,
             .thin = @max(1, pyround(scale)),
-            .thick = @max(2, pyround(2 * scale)),
+            .thick = @max(2, pyround(2.5 * scale)),
             .t0 = f.timeAt(0) - f.interval,
             .t1 = f.timeAt(f.steps - 1),
             .xs = undefined,
@@ -227,7 +238,6 @@ pub const Chart = struct {
         c.windDirection(rects[4][0], rects[4][1]);
         try c.cloudBase(rects[5][0], rects[5][1]);
         try c.clouds(rects[6][0], rects[6][1]);
-        c.footer();
     }
 
     // --- common parts -------------------------------------------------------------
@@ -298,35 +308,47 @@ pub const Chart = struct {
     fn header(c: *Chart) void {
         const cv = &c.canvas;
         const f = c.f;
-        const y_info = c.pf(13);
-        var buf: [128]u8 = undefined;
+        var buf: [160]u8 = undefined;
+        var rb: [32]u8 = undefined;
+        const x = c.pf(legend_x);
+        if (c.title.len > 0) {
+            cv.text(x, c.pf(22), c.title, c.title_font, black, .left, .baseline);
+            if (c.note.len > 0)
+                cv.text(x + @as(f64, @floatFromInt(c.title_font.width(c.title) + c.p(12))), c.pf(22), c.note, c.normal, grey_text, .left, .baseline);
+            const line = std.fmt.bufPrint(&buf, "UM 4 km, 60 h, start {s}", .{f.run(&rb)}) catch unreachable;
+            cv.text(x, c.pf(38), line, c.small, grey_text, .left, .baseline);
+        } else {
+            cv.text(x, c.pf(22), "UM 4 km, 60 h", c.title_font, black, .left, .baseline);
+            const line = std.fmt.bufPrint(&buf, "start {s}", .{f.run(&rb)}) catch unreachable;
+            cv.text(x, c.pf(38), line, c.small, grey_text, .left, .baseline);
+        }
+        cv.text(x, c.pf(52), "dane: meteo.pl (ICM UW), szare pasma: noc", c.small, grey_text, .left, .baseline);
+        // one blue line: sun times and coordinates, ending before x = 900 (design px) -
+        // the plugin lays its status and the IMGW alert over the corner right of it
+        const y_info = c.pf(18);
+        var b1: [32]u8 = undefined;
+        var b2: [32]u8 = undefined;
+        const coords = std.fmt.bufPrint(&b1, "{s}  ", .{tu.dms(&b2, f.lat, "N", "S")}) catch unreachable;
+        var b3: [32]u8 = undefined;
+        const coords2 = tu.dms(&b3, f.lon, "E", "W");
         if (tu.sunTimes(f.lat, f.lon, @floatFromInt(f.start))) |sun| {
             const rise = tu.localF(sun.rise);
             const sset = tu.localF(sun.set);
-            const s = std.fmt.bufPrint(&buf, "wschód słońca {d:0>2}:{d:0>2}   zachód {d:0>2}:{d:0>2} {s}", .{ u(rise.hour), u(rise.minute), u(sset.hour), u(sset.minute), c.zone() }) catch unreachable;
-            cv.text(c.pf(plot_x0), y_info, s, c.normal, blue, .left, .baseline);
+            const s_ = std.fmt.bufPrint(&buf, "wschód słońca {d:0>2}:{d:0>2}   zachód {d:0>2}:{d:0>2} {s}      {s}{s}", .{ u(rise.hour), u(rise.minute), u(sset.hour), u(sset.minute), c.zone(), coords, coords2 }) catch unreachable;
+            cv.text(c.pf(plot_x0), y_info, s_, c.normal, blue, .left, .baseline);
+        } else {
+            const s_ = std.fmt.bufPrint(&buf, "{s}{s}", .{ coords, coords2 }) catch unreachable;
+            cv.text(c.pf(plot_x0), y_info, s_, c.normal, blue, .left, .baseline);
         }
-        var b1: [32]u8 = undefined;
-        var b2: [32]u8 = undefined;
-        const coords = std.fmt.bufPrint(&buf, "{s}  {s}", .{ tu.dms(&b1, f.lat, "N", "S"), tu.dms(&b2, f.lon, "E", "W") }) catch unreachable;
-        cv.text(@floatFromInt(@divFloor(c.p(plot_x0) + c.p(plot_x1), 2)), y_info, coords, c.normal, blue, .center, .baseline);
-        if (f.row != null and f.col != null) {
-            const s = std.fmt.bufPrint(&buf, "siatka UM: wiersz {d}, kolumna {d}", .{ f.row.?, f.col.? }) catch unreachable;
-            cv.text(c.pf(plot_x1), y_info, s, c.normal, grey_text, .right, .baseline);
-        }
-        cv.text(c.pf(legend_x), y_info, "UM 4 km, 60 h", c.big, black, .left, .baseline);
-        var rb: [32]u8 = undefined;
-        const start = std.fmt.bufPrint(&buf, "start {s}", .{f.run(&rb)}) catch unreachable;
-        cv.text(c.pf(legend_x), c.pf(28), start, c.normal, grey_text, .left, .baseline);
-        cv.text(c.pf(legend_x), c.pf(41), "szare pasma: noc", c.small, grey_text, .left, .baseline);
+        // the top-right corner stays empty: the plugin lays its status and IMGW alert over it
     }
 
     fn timeAxes(c: *Chart) void {
         const cv = &c.canvas;
-        const y_days = c.pf(28);
-        const y_local = c.pf(40);
-        const y_utc: f64 = @floatFromInt(c.bottom + c.p(12));
-        const y_days2: f64 = @floatFromInt(c.bottom + c.p(24));
+        const y_days = c.pf(36);
+        const y_local = c.pf(51);
+        const y_utc: f64 = @floatFromInt(c.bottom + c.p(15));
+        const y_days2: f64 = @floatFromInt(c.bottom + c.p(31));
         const z = c.zone();
         cv.text(c.pf(plot_x0) - c.pf(4), y_local, z, c.small, black, .right, .baseline);
         cv.text(c.pf(plot_x1) + c.pf(4), y_local, z, c.small, black, .left, .baseline);
@@ -356,12 +378,6 @@ pub const Chart = struct {
         }
     }
 
-    fn footer(c: *Chart) void {
-        const y: f64 = @floatFromInt(c.p(height) - c.p(5));
-        c.canvas.text(c.pf(plot_x0), y, "dane: meteo.pl (ICM, Uniwersytet Warszawski), model UM", c.small, grey_text, .left, .baseline);
-        c.canvas.text(c.pf(plot_x1), y, "wykres: UM Meteo.pl dla enigmy2", c.small, grey_text, .right, .baseline);
-    }
-
     fn axisLeft(c: *Chart, y_of: YOf, ticks: []const f64, show_grid: bool, colour: Rgb) void {
         const cv = &c.canvas;
         const x0 = c.p(plot_x0);
@@ -385,22 +401,22 @@ pub const Chart = struct {
             const label = if (labels) |l| l[i] else fmtNum(&buf, v);
             cv.text(@floatFromInt(x1 + c.p(6)), @floatFromInt(y), label, c.small, colour, .left, .middle);
         }
-        if (unit) |un| cv.text(@floatFromInt(x1 - c.p(5)), @floatFromInt(y0 + c.p(9)), un, c.small, colour, .right, .middle);
+        if (unit) |un| cv.text(@floatFromInt(x1 - c.p(6)), @floatFromInt(y0 + c.p(11)), un, c.small, colour, .right, .middle);
     }
 
     fn legend(c: *Chart, y_in: i64, items: []const LegendItem, title: ?[]const u8) i64 {
         const cv = &c.canvas;
         const x = c.p(legend_x);
-        const line_h = c.p(12);
+        const line_h = c.p(15);
         var y = y_in;
         if (title) |t| {
-            cv.text(@floatFromInt(x), @floatFromInt(y + c.p(11)), t, c.big, black, .left, .baseline);
-            y += c.p(15);
+            cv.text(@floatFromInt(x), @floatFromInt(y + c.p(14)), t, c.big, black, .left, .baseline);
+            y += c.p(18);
         }
         for (items) |it| {
-            const ym = y + c.p(6);
+            const ym = y + c.p(7);
             const mx0 = x;
-            const mx1 = x + c.p(22);
+            const mx1 = x + c.p(26);
             switch (it.marker) {
                 .line => cv.hline(mx0, mx1, ym, it.colour, c.thick),
                 .thin => cv.hline(mx0, mx1, ym, it.colour, c.thin),
@@ -409,21 +425,21 @@ pub const Chart = struct {
                     var dx: i64 = 0;
                     while (dx < mx1 - mx0 + 1) : (dx += c.p(6)) cv.disc(@floatFromInt(mx0 + dx), @floatFromInt(ym), c.thin, it.colour, null);
                 },
-                .bar => cv.fill(mx0, ym - c.p(5), mx1, ym + c.p(5), it.colour),
-                .dot => cv.disc(@floatFromInt(@divFloor(mx0 + mx1, 2)), @floatFromInt(ym), @max(2, c.p(2.5)), it.colour, if (std.mem.eql(u8, &it.colour, &white)) grey_text else null),
+                .bar => cv.fill(mx0, ym - c.p(6), mx1, ym + c.p(6), it.colour),
+                .dot => cv.disc(@floatFromInt(@divFloor(mx0 + mx1, 2)), @floatFromInt(ym), @max(2, c.p(3)), it.colour, if (std.mem.eql(u8, &it.colour, &white)) grey_text else null),
                 .tri => {
                     const m = @divFloor(mx0 + mx1, 2);
-                    cv.polygon(&.{ pt(m - c.p(5), ym + c.p(4)), pt(m + c.p(5), ym + c.p(4)), pt(m, ym - c.p(4)) }, it.colour);
+                    cv.polygon(&.{ pt(m - c.p(6), ym + c.p(5)), pt(m + c.p(6), ym + c.p(5)), pt(m, ym - c.p(5)) }, it.colour);
                 },
                 .whisker => {
                     const m = @divFloor(mx0 + mx1, 2);
-                    cv.vline(m, ym - c.p(5), ym + c.p(5), it.colour, c.thin);
-                    cv.hline(m - c.p(2), m + c.p(2), ym - c.p(5), it.colour, c.thin);
-                    cv.hline(m - c.p(2), m + c.p(2), ym + c.p(5), it.colour, c.thin);
+                    cv.vline(m, ym - c.p(6), ym + c.p(6), it.colour, c.thin);
+                    cv.hline(m - c.p(3), m + c.p(3), ym - c.p(6), it.colour, c.thin);
+                    cv.hline(m - c.p(3), m + c.p(3), ym + c.p(6), it.colour, c.thin);
                 },
                 .none => {},
             }
-            cv.text(@floatFromInt(x + c.p(28)), @floatFromInt(ym), it.text, c.normal, black, .left, .middle);
+            cv.text(@floatFromInt(x + c.p(33)), @floatFromInt(ym), it.text, c.normal, black, .left, .middle);
             y += line_h;
         }
         return y;
@@ -540,7 +556,7 @@ pub const Chart = struct {
     fn precipitation(c: *Chart, y0: i64, y1: i64) !void {
         const cv = &c.canvas;
         const f = c.f;
-        const strip = c.p(10); // storm markers at the top
+        const strip = c.p(12); // storm markers at the top
         const top_y = y0 + strip;
         const bottom = y1 - c.thin;
         var peak: f64 = 0;
@@ -584,9 +600,9 @@ pub const Chart = struct {
         for (f.get(.storm_max), f.get(.flash_max), 0..) |storm, flash, i| {
             const x = pyround(c.xs[i] - c.hour_w / 2);
             if (storm != null and storm.? > 0)
-                cv.polygon(&.{ pt(x - c.p(4), y0 + strip - c.p(2)), pt(x + c.p(4), y0 + strip - c.p(2)), pt(x, y0 + c.p(2)) }, yellow);
+                cv.polygon(&.{ pt(x - c.p(5), y0 + strip - c.p(2)), pt(x + c.p(5), y0 + strip - c.p(2)), pt(x, y0 + c.p(2)) }, yellow);
             if (flash != null and flash.? > 0)
-                cv.polygon(&.{ pt(x - c.p(2), y0 + strip - c.p(3)), pt(x + c.p(2), y0 + strip - c.p(3)), pt(x, y0 + c.p(4)) }, red);
+                cv.polygon(&.{ pt(x - c.p(2.5), y0 + strip - c.p(3)), pt(x + c.p(2.5), y0 + strip - c.p(3)), pt(x, y0 + c.p(5)) }, red);
         }
         var b1: [max_steps]?f64 = undefined;
         cv.polyline(c.xs, c.ys(&b1, .pcpttlprob_point, y_pct), prob_c, c.thin, .{ 3 * c.thin, 3 * c.thin });
@@ -708,7 +724,7 @@ pub const Chart = struct {
         var b1: [max_steps]?f64 = undefined;
         for (f.get(.visibl_min), 0..) |v, i| b1[i] = if (v) |x| y_vis.at(x / 1000.0) else null;
         cv.polyline(c.xs, b1[0..f.steps], vis_c, c.thick, null);
-        const r = @max(2, c.p(2.5));
+        const r = @max(2, c.p(3));
         const base_series = [_]fc.Series{ .cldbse01, .cldbse25, .cldbse45, .cldbse65, .cldbse79 };
         for (base_series, base_shades) |name, shade| {
             for (c.xs, f.get(name)) |x, v| {
@@ -762,14 +778,45 @@ fn u(v: i64) u64 {
     return @intCast(v);
 }
 
+pub const Pic = struct { px: []u8, width: u32, height: u32 };
+
 /// Forecast -> RGB pixels (width*height*3) of the chart at `scale`. Caller frees.
-pub fn renderRgb(gpa: std.mem.Allocator, fonts: *const render.Fonts, f: *const fc.Forecast, scale: f64) !struct { px: []u8, width: u32, height: u32 } {
-    var c = try Chart.init(gpa, fonts, f, scale);
+pub fn renderRgb(gpa: std.mem.Allocator, fonts: *const render.Fonts, f: *const fc.Forecast, scale: f64, title: []const u8, note: []const u8) !Pic {
+    var c = try Chart.init(gpa, fonts, f, scale, title, note);
     defer gpa.free(c.xs);
     errdefer gpa.free(c.canvas.px);
     try c.draw();
     return .{ .px = c.canvas.px, .width = @intCast(c.canvas.width), .height = @intCast(c.canvas.height) };
 }
+
+/// Empty panel frames with a message: the plugin's loading.png / error.png.
+pub fn placeholder(gpa: std.mem.Allocator, fonts: *const render.Fonts, scale: f64, title: []const u8, subtitle: []const u8, colour: Rgb) !Pic {
+    const P = struct {
+        s: f64,
+        fn f(self: @This(), v: f64) i64 {
+            return pyround(v * self.s);
+        }
+    };
+    const p = P{ .s = scale };
+    var cv = try Canvas.init(gpa, @intCast(p.f(width)), @intCast(p.f(height)), white);
+    errdefer gpa.free(cv.px);
+    var y = p.f(top);
+    for (panels) |pan| {
+        const h: f64 = @floatFromInt(pan.height);
+        cv.fill(p.f(plot_x0), y, p.f(plot_x1), y + p.f(h), .{ 246, 246, 246 });
+        var x = p.f(plot_x0);
+        while (x < p.f(plot_x1)) : (x += p.f(70)) cv.vline(x, y, y + p.f(h), .{ 232, 232, 232 }, @max(1, p.f(1)));
+        y += p.f(h + gap);
+    }
+    const cx: f64 = @floatFromInt(@divFloor(p.f(width), 2));
+    const cy: f64 = @floatFromInt(@divFloor(p.f(height), 2));
+    cv.text(cx, cy - @as(f64, @floatFromInt(p.f(16))), title, fonts.font(pyround(20 * scale * 2)), colour, .center, .middle);
+    cv.text(cx, cy + @as(f64, @floatFromInt(p.f(26))), subtitle, fonts.font(pyround(16 * scale)), grey_text, .center, .middle);
+    return .{ .px = cv.px, .width = @intCast(cv.width), .height = @intCast(cv.height) };
+}
+
+pub const placeholder_blue = blue;
+pub const placeholder_red = red;
 
 test "axis helpers" {
     const r = niceRange(&.{ 3.0, 9.6 }, 5, 1.0, 15);

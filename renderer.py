@@ -10,7 +10,7 @@ import sys
 import time
 
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
-WIDTH, HEIGHT = 1060, 660       # design pixels of the chart (zig/src/chart.zig)
+WIDTH, HEIGHT = 1280, 720       # design pixels of the chart (zig/src/chart.zig): the whole 720p screen
 TIMEOUT = 40                    # seconds for the whole fetch + draw
 
 
@@ -55,9 +55,11 @@ def parse_result(stdout):
     return run, (w, h)
 
 
-def render(location_id, scale, out_path, run=subprocess.run):
-    """Blocking: fetch the newest forecast and draw it to out_path -> (run text, (w, h))."""
-    cmd = [binary(), "--id", str(location_id), "--scale", f"{scale:g}", "--out", out_path, "--timeout", str(TIMEOUT)]
+def render(location_id, scale, out_path, title="", note="", run=subprocess.run):
+    """Blocking: fetch the newest forecast and draw it to out_path -> (run text, (w, h)).
+    `title` (the location name) and `note` ("1/5") go into the chart's header."""
+    cmd = [binary(), "--id", str(location_id), "--scale", f"{scale:g}", "--out", out_path, "--timeout", str(TIMEOUT),
+           "--title", title, "--note", note]
     try:
         result = run(cmd, capture_output=True, text=True, timeout=TIMEOUT + 10)
     except subprocess.TimeoutExpired:
