@@ -1,0 +1,8 @@
+.{
+    .name = .ummeteo,
+    .version = "26.11.8",
+    .fingerprint = 0x6c73ab1cb30c3f0c,
+    .minimum_zig_version = "0.17.1",
+    .dependencies = .{},
+    .paths = .{""},
+}

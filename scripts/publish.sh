@@ -1,7 +1,7 @@
 #!/bin/sh
 # Publikuje wtyczkę na serwerze aktualizacji (FTP, katalog widoczny pod $UMMETEO_HTTP):
 #
-#   UMMeteoPL.tar.gz          git archive HEAD bez docs/tests/tools/scripts
+#   UMMeteoPL.tar.gz          git archive HEAD bez docs/tests/tools/scripts/zig
 #   UMMeteoPL.tar.gz.sha256   sprawdzana przez install.sh
 #   install.sh                jednolinijkówka, uruchamiana też przez update.py co 8 h
 #   index.html, screenshots/  strona z dokumentacją (docs/index.html)
@@ -49,7 +49,7 @@ put() { curl -fsS --netrc-file "$STAGE/netrc" --ftp-create-dirs -T "$STAGE/out/$
 
 mkdir "$STAGE/out"
 git archive --format=tar.gz --prefix=UMMeteoPL/ -o "$STAGE/out/UMMeteoPL.tar.gz" HEAD -- . \
-    ':!docs' ':!tests' ':!tools' ':!scripts' ':!.gitignore' ':!install.sh'
+    ':!docs' ':!tests' ':!tools' ':!scripts' ':!zig' ':!.gitignore' ':!install.sh'
 (cd "$STAGE/out" && sha256sum UMMeteoPL.tar.gz > UMMeteoPL.tar.gz.sha256)
 git show HEAD:install.sh > "$STAGE/out/install.sh"
 printf '%s\ninstall.sh %s\n' "$VERSION" "$(sha256sum "$STAGE/out/install.sh" | cut -d' ' -f1)" > "$STAGE/out/version"

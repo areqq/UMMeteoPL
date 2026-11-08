@@ -121,6 +121,7 @@ i openATV (Python 3.13, MetrixHD).
 | `setup.py` | ustawienia (`ConfigListScreen`, wygląd ze skórki `Setup`) |
 | `configure.py` | edytor listy ulubionych |
 | `keymap.xml` | kontekst `MeteoActions` |
+| `zig/` | ten sam meteogram w czystym Zigu 0.17.1: statyczna binarka `ummeteo` (mipsel, ARM), piksel w piksel jak Python, ~40× szybsze rysowanie na MIPS; na razie obok wtyczki ([zig/README.md](zig/README.md)) |
 
 Wtyczka co 8 godzin sprawdza w tle plik `version` na serwerze wtyczki i przy innej
 wersji uruchamia z niego `install.sh`. Adres serwera jest
