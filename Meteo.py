@@ -69,7 +69,7 @@ class Meteo(Screen):
         self["chart"] = Pixmap()
         self["alert"] = Label("")
         self["actions"] = ActionMap(["MeteoActions"], {
-            "ok": self.close,
+            "ok": self.ok,
             "list": self.choose,
             "cancel": self.close,
             "left": self.prev,
@@ -230,14 +230,30 @@ class Meteo(Screen):
             self["alert"].instance.setForegroundColor(gRGB(fg))
         self["alert"].show()
 
+    def ok(self):
+        """OK: the IMGW warnings when there are any, otherwise leave; OK in the warnings
+        window leaves too (one key twice = out), EXIT there comes back here."""
+        if self.current_alerts():
+            self.show_alerts()
+        else:
+            self.close()
+
     def info(self):
+        if self.current_alerts():
+            self.show_alerts()
+        else:
+            self.help()
+
+    def show_alerts(self):
         found = self.current_alerts()
-        if not found:
-            return self.help()
         now = datetime.now()
         text = "\n\n".join(a.details(now) for a in found)
-        self.session.open(AlertText, text + "\n\nŹródło: IMGW-PIB, danepubliczne.imgw.pl",
-                          f"Ostrzeżenia IMGW - {self.favourites[self.index].name}")
+        self.session.openWithCallback(self.alerts_closed, AlertText, text + "\n\nŹródło: IMGW-PIB, danepubliczne.imgw.pl",
+                                      f"Ostrzeżenia IMGW - {self.favourites[self.index].name}")
+
+    def alerts_closed(self, leave=False):
+        if leave:
+            self.close()
 
     def set_status(self, text, error=False):
         self["status"].setText(text)
@@ -324,7 +340,7 @@ class AlertText(Screen):
             <widget name="title" position="{s(20)},0" size="{s(width - 40)},{s(50)}" font="Regular;{s(30)}" valign="center" foregroundColor="#00202020" backgroundColor="#00ffffff" />
             <eLabel position="{s(20)},{s(50)}" size="{s(width - 40)},{s(2)}" backgroundColor="#00d02020" />
             <widget name="text" position="{s(20)},{s(62)}" size="{s(width - 40)},{s(height - 102)}" font="Regular;{s(30)}" foregroundColor="#00202020" backgroundColor="#00ffffff" />
-            <eLabel text="OK / EXIT zamyka,  góra / dół przewija" position="0,{s(height - 32)}" size="{s(width)},{s(32)}" font="Regular;{s(17)}" halign="center" valign="center" foregroundColor="#00606060" backgroundColor="#00ececec" />
+            <eLabel text="OK zamyka wtyczkę,  EXIT wraca do meteogramu,  góra / dół przewija" position="0,{s(height - 32)}" size="{s(width)},{s(32)}" font="Regular;{s(17)}" halign="center" valign="center" foregroundColor="#00606060" backgroundColor="#00ececec" />
         </screen>"""
         Screen.__init__(self, session)
         self.skinName = "UMMeteoPLAlert"
@@ -332,8 +348,8 @@ class AlertText(Screen):
         self["title"] = Label(title)
         self["text"] = ScrollLabel(text)
         self["actions"] = ActionMap(["OkCancelActions", "DirectionActions"], {
-            "ok": self.close,
-            "cancel": self.close,
+            "ok": lambda: self.close(True),      # leave the plugin
+            "cancel": lambda: self.close(False), # back to the meteogram
             "up": self["text"].pageUp,
             "down": self["text"].pageDown,
             "left": self["text"].pageUp,

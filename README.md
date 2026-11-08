@@ -62,9 +62,10 @@ oglądanej miejscowości, oraz jak długo pamiętać pobrany meteogram.
 | LIST | lista ulubionych |
 | CZERWONY | odśwież (z pominięciem pamięci) |
 | MENU, NIEBIESKI | ustawienia |
+| OK | ostrzeżenia IMGW, gdy są (drugie OK w ich oknie zamyka wtyczkę, EXIT wraca); bez ostrzeżeń: wyjście |
 | INFO | szczegóły ostrzeżeń IMGW (bez ostrzeżeń: pomoc) |
 | ŻÓŁTY | pomoc |
-| OK, EXIT | wyjście |
+| EXIT | wyjście |
 
 W edytorze ulubionych: OK zmienia albo dodaje miejscowość, CZERWONY usuwa, ŻÓŁTY / NIEBIESKI
 przesuwa, ZIELONY zapisuje. EXIT z niezapisanymi zmianami pyta, co zrobić.

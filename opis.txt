@@ -7,9 +7,12 @@ EKRAN METEOGRAMU
   LIST                            lista ulubionych
   CZERWONY                        odśwież (pomija pamięć podręczną)
   MENU lub NIEBIESKI              ustawienia - lista ulubionych
+  OK                              ostrzeżenia IMGW (gdy są), inaczej wyjście;
+                                  drugie OK w oknie ostrzeżeń zamyka wtyczkę,
+                                  EXIT wraca do meteogramu
   INFO                            szczegóły ostrzeżeń IMGW (gdy są), inaczej pomoc
   ŻÓŁTY                           ta pomoc
-  OK lub EXIT                     wyjście
+  EXIT                            wyjście
 
 Meteogram to prognoza modelu UM 4 km na 60 godzin, co godzinę, rysowana
 na dekoderze z liczb pobranych z meteo.pl: temperatura (średnia, pasmo
@@ -54,6 +57,10 @@ Państwowego Rejestru Nazw Geograficznych (GUGiK).
 
 
 Historia zmian:
+
+2026.11.12
+- OK otwiera ostrzeżenia IMGW, gdy są; drugie OK w ich oknie zamyka wtyczkę,
+  EXIT wraca do meteogramu
 
 2026.11.11
 - meteogram na całym ekranie, bez pasków nad i pod nim: większe pismo,
