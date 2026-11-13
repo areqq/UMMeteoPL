@@ -49,10 +49,14 @@ th { color: var(--muted); font-weight: 600; font-size: .9rem; }
 .key { display: inline-block; width: .8em; height: .8em; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 .note { color: var(--muted); font-size: .92rem; }
 footer { margin-top: 56px; color: var(--muted); font-size: .9rem; }
+.notice { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  border-radius: 8px; padding: 10px 14px; margin: 0 0 24px; }
 </style>
 </head>
 <body>
 <main>
+
+<p class="notice">Zanim zainstalujesz, zapoznaj się z <a href="../about/">zasadami</a>.</p>
 
 <h1>UM Meteo.pl dla enigmy2</h1>
 <p class="lead">Meteogram modelu UM z danych <a href="https://www.meteo.pl">meteo.pl</a> (ICM, Uniwersytet Warszawski)
@@ -161,7 +165,8 @@ ZIELONY zapisuje. EXIT z niezapisanymi zmianami pyta, co zrobić.</p>
 <footer>
   Kod źródłowy: <a href="https://github.com/areqq/UMMeteoPL">github.com/areqq/UMMeteoPL</a> ·
   pełna instrukcja i historia zmian: <a href="https://github.com/areqq/UMMeteoPL/blob/master/opis.txt">opis.txt</a>
-  (na dekoderze pod klawiszem ŻÓŁTYM)
+  (na dekoderze pod klawiszem ŻÓŁTYM) ·
+  <a href="../about/">o autorze i zasadach</a>
 </footer>
 </main>
 <script>
